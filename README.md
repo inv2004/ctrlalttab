@@ -3,8 +3,12 @@ triggers alt-tab for ctrl-tab
 supports multi tab scroll
 
 ## requirements
+- Windows
 - Nim 1.6.20
 - nimble install wAuto
+
+## build
+`nim c -d:release ctrlalttab.nim`
 
 I use with with the following keys regedit:
 "Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout\Scancode Map"
