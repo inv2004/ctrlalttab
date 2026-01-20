@@ -11,7 +11,7 @@ supports multi tab scroll
 `nim c -d:release ctrlalttab.nim`
 
 I use with with the following keys regedit:
-"Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout\Scancode Map"
+`Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout\Scancode Map`
 ```
 00 00 00 00 00 00 00 00
 07 00 00 00 1D 00 38 00
