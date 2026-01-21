@@ -2,8 +2,8 @@
 triggers alt-tab for ctrl-tab
 
 - supports multi tab scroll
-- ctrl+[ to pgup
-- ctrl+] to pgdown
+- ctrl+[ to pgup, ctrl+] to pgdown
+- caps to Alt+Shift # Language switch
 - win+shift+f23 to home # lenovo AI key
 
 ## requirements
