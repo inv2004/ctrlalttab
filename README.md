@@ -26,5 +26,7 @@ sharpkeys do the same thing, and also does not support shortcuts remap
 - Nim 2.0.8
 
 ## build
-`nimble install wAuto`
-`nim c -d:release ctrlalttab.nim`
+```
+nimble install wAuto
+nim c -d:release ctrlalttab.nim
+```
