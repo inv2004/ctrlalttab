@@ -8,7 +8,7 @@ triggers alt-tab for ctrl-tab
 
 ## requirements
 - Windows
-- Nim 1.6.20
+- Nim 2.0.8
 - nimble install wAuto
 
 ## build
