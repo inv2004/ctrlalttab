@@ -14,7 +14,7 @@ triggers alt-tab for ctrl-tab
 ## build
 `nim c -d:release ctrlalttab.nim`
 
-I use with with the following keys regedit:
+It is preferrable to remap simple keys via `Scancode Map`, that is why I use with with the following regedit:
 `Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout\Scancode Map`
 ```
 00 00 00 00 00 00 00 00
