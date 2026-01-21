@@ -55,9 +55,8 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
         if (GetAsyncKeyState(VK_CONTROL) and 0x8000) != 0: modifiers = modifiers or wModCtrl
         if (GetAsyncKeyState(VK_MENU) and 0x8000) != 0: modifiers = modifiers or wModAlt
         if (GetAsyncKeyState(VK_SHIFT) and 0x8000) != 0: modifiers = modifiers or wModShift
-        if (GetAsyncKeyState(VK_LWIN) and 0x8000) != 0 or (GetAsyncKeyState(VK_RWIN) and 0x8000) != 0:
-          modifiers = modifiers or wModWin
-          hkData.lastModifiers = modifiers
+        if (GetAsyncKeyState(VK_LWIN) and 0x8000) != 0 or (GetAsyncKeyState(VK_RWIN) and 0x8000) != 0: modifiers = modifiers or wModWin
+        hkData.lastModifiers = modifiers
 
       if keyCode != hkData.lastKeyCode:
         if modifiers == wModCtrl:
@@ -74,10 +73,10 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
             processed = true
           else:
             discard
-        elif modifiers == 12 and keyCode == 134: # Win+Shift+F23
+        elif modifiers == 12 and keyCode == VK_F23: # Win+Shift+F23
           send "{LWINUP}{LSHIFTUP}{HOME}"
           processed = true
-        elif keyCode == 20: # CAPS
+        elif keyCode == VK_CAPITAL: # CAPS
           send "{LCTRLDOWN}{LSHIFT}{LCTRLUP}"
           processed = true
         else:
