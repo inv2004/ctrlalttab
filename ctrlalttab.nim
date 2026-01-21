@@ -77,6 +77,9 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
         elif modifiers == 12 and keyCode == 134: # Win+Shift+F23
           send "{LWINUP}{LSHIFTUP}{HOME}"
           processed = true
+        elif keyCode == 20: # CAPS
+          send "{LCTRLDOWN}{LSHIFT}{LCTRLUP}"
+          processed = true
         else:
           discard
 
