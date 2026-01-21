@@ -28,7 +28,7 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
       hkData.lastModifiers = hkData.lastModifiers and (not wModCtrl)
       isMod = true
       if hkData.alttab:
-        sleep(50)  # TODO: to prevent open alt-tab on fast click
+        sleep(5)  # TODO: to prevent open alt-tab on fast click
         send "{ENTER}"
         hkData.alttab = false
     of VK_LMENU, VK_RMENU: hkData.lastModifiers = hkData.lastModifiers and (not wModAlt); isMod = true
