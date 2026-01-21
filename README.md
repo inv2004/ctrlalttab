@@ -7,6 +7,8 @@ Remap some windows shortcuts. Simple replacement for powertoys keyboard manager
 - caps to Alt+Shift # Language switch
 - win+shift+f23 to home # lenovo AI key
 
+## Simple keys remap
+
 I prefer to remap single keys via `Scancode Map`, that is why I use with with the following regedit:
 `Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout\Scancode Map`
 ```
