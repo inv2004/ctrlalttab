@@ -8,8 +8,6 @@ type
     lastKeyCode: int
     lastModifiers: int
     alttab: bool
-    # lefttab: bool
-    # righttab: bool
 
 var hkData {.threadvar.}: HotkeyData
 
