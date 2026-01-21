@@ -1,7 +1,10 @@
 # ctrlalttab
 triggers alt-tab for ctrl-tab
 
-supports multi tab scroll
+- supports multi tab scroll
+- ctrl+[ to pgup
+- ctrl+] to pgdown
+- win+shift+f23 to home # lenovo AI key
 
 ## requirements
 - Windows
