@@ -19,6 +19,8 @@ I prefer to remap single keys via `Scancode Map`, that is why I use with with th
 37 E0 47 E0 00 00 00 00
 ```
 
+sharpkeys do the same thing, and also does not support shortcuts remap
+
 ## requirements
 - Windows
 - Nim 2.0.8
