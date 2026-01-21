@@ -8,6 +8,8 @@ type
     lastKeyCode: int
     lastModifiers: int
     alttab: bool
+    # lefttab: bool
+    # righttab: bool
 
 var hkData {.threadvar.}: HotkeyData
 
@@ -58,10 +60,23 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
           hkData.lastModifiers = modifiers
 
       if keyCode != hkData.lastKeyCode:
-        if modifiers == wModCtrl and keyCode == VK_TAB:
-          send "!{TAB}"
+        if modifiers == wModCtrl:
+          case keyCode
+          of VK_TAB:
+            send "!{TAB}"
+            processed = true
+            hkData.alttab = true
+          of 219:
+            send "{LCTRLDOWN}{PGUP}"
+            processed = true
+          of 221:
+            send "{LCTRLDOWN}{PGDN}"
+            processed = true
+          else:
+            discard
+        elif modifiers == 12 and keyCode == 134: # AI key
+          send "{HOME}"
           processed = true
-          hkData.alttab = true
 
       hkData.lastKeyCode = keyCode
 
