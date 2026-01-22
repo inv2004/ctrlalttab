@@ -21,7 +21,7 @@ I prefer to remap single keys via `Scancode Map`, that is why I use with with th
 37 E0 47 E0 00 00 00 00
 ```
 
-sharpkeys do the same thing, and also does not support shortcuts remap
+sharpkeys do the same thing, and does not support shortcuts remap (why the repo is created)
 
 ## requirements
 - Windows
