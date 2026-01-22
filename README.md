@@ -3,7 +3,7 @@
 Remap some windows shortcuts. Simple replacement for powertoys keyboard manager
 
 - triggers alt-tab for ctrl-tab, supports multi tab switch
-- ctrl+\[ to pgup, ctrl+\] to pgdown
+- ctrl+\[ to ctrl+pgup, ctrl+\] to ctrl+pgdown
 - caps to Alt+Shift # Language switch
 - win+shift+f23 to home # lenovo AI key
 - screen on functionality
@@ -12,16 +12,17 @@ Remap some windows shortcuts. Simple replacement for powertoys keyboard manager
 ## Simple keys remap
 
 I prefer to remap single keys via `Scancode Map`, that is why I use with with the following regedit:
-`Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout\Scancode Map`
-```
-00 00 00 00 00 00 00 00
-07 00 00 00 1D 00 38 00
-38 00 1D 00 4F E0 1D E0
-47 E0 38 E0 47 E0 5D E0
-37 E0 47 E0 00 00 00 00
-```
 
-sharpkeys do the same thing, and does not support shortcuts remap (why the repo is created)
+```
+alt <=> ctrl
+rctrl => end
+ralt => home
+rmenu => home
+home => print screen (maybe will remove)
+
+```
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout" /v "Scancode Map" /t REG_BINARY /d 0000000000000000070000001D00380038001D004FE01DE047E038E047E05DE037E047E000000000
+```
 
 ## requirements
 - Windows
