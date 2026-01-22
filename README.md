@@ -29,6 +29,6 @@ sharpkeys do the same thing, and also does not support shortcuts remap
 
 ## build
 ```
-nimble install wAuto
-nim c -d:release ctrlalttab.nim
+nimble install wAuto libtray
+nim c -d:release -d:strip --opt:size --app:gui ctrlalttab.nim
 ```
