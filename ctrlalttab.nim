@@ -1,6 +1,9 @@
 import winim/lean
 import wNim/[wApp, wFrame]
 import wAuto
+
+import libtray
+
 import os
 
 type
@@ -11,6 +14,8 @@ type
     alttab: bool
 
 var hkData {.threadvar.}: HotkeyData
+var frame {.threadvar.}: wFrame
+var tray {.threadvar.}: Tray
 
 proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} =
   var processed = false
@@ -28,7 +33,7 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
       hkData.lastModifiers = hkData.lastModifiers and (not wModCtrl)
       isMod = true
       if hkData.alttab:
-        sleep(5)  # TODO: to prevent open alt-tab on fast click
+        sleep(10)  # TODO: to prevent open alt-tab on fast click
         send "{ENTER}"
         hkData.alttab = false
     of VK_LMENU, VK_RMENU: hkData.lastModifiers = hkData.lastModifiers and (not wModAlt); isMod = true
@@ -86,10 +91,49 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
 
   else: discard
 
+proc window_cb(_: ptr Tray) {.cdecl.} =
+  discard
+
+proc remap_cb(item: ptr TrayMenuItem) {.cdecl.} =
+  let tray = trayGetInstance()
+  item.checked = cint(not bool(item.checked))
+  if bool(item.checked):
+    hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
+  else:
+    echo UnhookWindowsHookEx(hkData.hHook)
+  if not tray.isNil: trayUpdate(tray)
+
+proc screen_cb(item: ptr TrayMenuItem) {.cdecl.} =
+  let tray = trayGetInstance()
+  item.checked = cint(not bool(item.checked))
+  if bool(item.checked):
+    SetThreadExecutionState(ES_CONTINUOUS or ES_SYSTEM_REQUIRED or ES_DISPLAY_REQUIRED)
+  else:
+    SetThreadExecutionState(ES_CONTINUOUS)
+  if not tray.isNil: trayUpdate(tray)
+
+proc quit_cb(_: ptr TrayMenuItem) {.cdecl.} =
+  trayExit()
+  quit 0
+
+tray = initTray(
+  iconFilepath = "icon.ico",
+  tooltip = "CtrlAltTab",
+  cb = window_cb,
+  menus = [
+    initTrayMenuItem(text = "Remap Alt-Tab", checked = true, cb = remap_cb),
+    initTrayMenuItem(text = "Screen On", checked = true, cb = screen_cb),
+    initTrayMenuItem(text = "-"),
+    initTrayMenuItem(text = "Quit", cb = quit_cb)
+  ]
+)
+
 proc main() =
-  let app = App()
-  discard Frame()
-  SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
+  if trayInit(addr tray) != 0: quit 1
+  let app = App(wSystemDpiAware)
+  discard Frame(title="ctrl-alt-tab", size=(400, 200), style = wDefaultFrameStyle or wHideTaskbar)
+  SetThreadExecutionState(ES_CONTINUOUS or ES_SYSTEM_REQUIRED or ES_DISPLAY_REQUIRED)
+  hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
   app.mainLoop()
 
 main()
