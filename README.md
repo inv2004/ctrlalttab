@@ -6,6 +6,8 @@ Remap some windows shortcuts. Simple replacement for powertoys keyboard manager
 - ctrl+\[ to pgup, ctrl+\] to pgdown
 - caps to Alt+Shift # Language switch
 - win+shift+f23 to home # lenovo AI key
+- screen on functionality
+- tray menu
 
 ## Simple keys remap
 
