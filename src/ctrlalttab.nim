@@ -1,10 +1,18 @@
-import winim/lean
-import wNim/[wApp, wFrame]
+import winim/[lean, inc/shellapi]
+import wNim/[wApp, wFrame, wTextCtrl]
 import wAuto
 
 import libtray
 
+import std/with
 import os
+
+const regPath = r"HKEY_CURRENT_USER\SOFTWARE\CtrlAltDel"
+const regRemap = "RemapDisabled"
+const regScreenOn = "ScreenOn"
+
+const url = "https://github.com/inv2004/ctrlalttab"
+const authorUrl = "https://github.com/inv2004"
 
 type
   HotkeyData = object
@@ -15,7 +23,6 @@ type
 
 var hkData {.threadvar.}: HotkeyData
 var frame {.threadvar.}: wFrame
-var tray {.threadvar.}: Tray
 
 proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} =
   var processed = false
@@ -33,7 +40,7 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
       hkData.lastModifiers = hkData.lastModifiers and (not wModCtrl)
       isMod = true
       if hkData.alttab:
-        sleep(10)  # TODO: to prevent open alt-tab on fast click
+        sleep(15)  # TODO: to prevent open alt-tab on fast click
         send "{ENTER}"
         hkData.alttab = false
     of VK_LMENU, VK_RMENU: hkData.lastModifiers = hkData.lastModifiers and (not wModAlt); isMod = true
@@ -92,48 +99,83 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
   else: discard
 
 proc window_cb(_: ptr Tray) {.cdecl.} =
-  discard
+  frame.center()
+  frame.show()
 
 proc remap_cb(item: ptr TrayMenuItem) {.cdecl.} =
   let tray = trayGetInstance()
+  doAssert not tray.isNil
+
   item.checked = cint(not bool(item.checked))
   if bool(item.checked):
+    regDelete(regPath, regRemap)
     hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
   else:
-    echo UnhookWindowsHookEx(hkData.hHook)
-  if not tray.isNil: trayUpdate(tray)
+    regWrite(regPath, regRemap, 1)
+    UnhookWindowsHookEx(hkData.hHook)
+  trayUpdate(tray)
 
 proc screen_cb(item: ptr TrayMenuItem) {.cdecl.} =
   let tray = trayGetInstance()
+  doAssert not tray.isNil
+
   item.checked = cint(not bool(item.checked))
   if bool(item.checked):
+    regWrite(regPath, regScreenOn, 1)
     SetThreadExecutionState(ES_CONTINUOUS or ES_SYSTEM_REQUIRED or ES_DISPLAY_REQUIRED)
   else:
+    regDelete(regPath, regScreenOn)
     SetThreadExecutionState(ES_CONTINUOUS)
-  if not tray.isNil: trayUpdate(tray)
+  trayUpdate(tray)
 
 proc quit_cb(_: ptr TrayMenuItem) {.cdecl.} =
   trayExit()
   quit 0
 
-tray = initTray(
-  iconFilepath = "icon.ico",
-  tooltip = "CtrlAltTab",
-  cb = window_cb,
-  menus = [
-    initTrayMenuItem(text = "Remap Alt-Tab", checked = true, cb = remap_cb),
-    initTrayMenuItem(text = "Screen On", checked = true, cb = screen_cb),
-    initTrayMenuItem(text = "-"),
-    initTrayMenuItem(text = "Quit", cb = quit_cb)
-  ]
-)
-
 proc main() =
-  if trayInit(addr tray) != 0: quit 1
+  # check register values
+  let isRemapEnabled = regRead(regPath, regRemap).kind == rkRegError
+  let isScreenOnEnabled = regRead(regPath, regScreenOn).kind != rkRegError
+
+  # tray
+  let tray = initTray(
+    iconFilepath = "icon.ico",
+    tooltip = "CtrlAltTab",
+    cb = window_cb,
+    menus = [
+      initTrayMenuItem(text = "Remap CtrlAltTab", checked = isRemapEnabled, cb = remap_cb),
+      initTrayMenuItem(text = "Screen On", checked = isScreenOnEnabled, cb = screen_cb),
+      initTrayMenuItem(text = "-"),
+      initTrayMenuItem(text = "Quit", cb = quit_cb)
+    ]
+  )
+  doAssert trayInit(addr tray) == 0
+
   let app = App(wSystemDpiAware)
-  discard Frame(title="ctrl-alt-tab", size=(400, 200), style = wDefaultFrameStyle or wHideTaskbar)
-  SetThreadExecutionState(ES_CONTINUOUS or ES_SYSTEM_REQUIRED or ES_DISPLAY_REQUIRED)
-  hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
+  frame = Frame(title="CtrlAltTab", size=(400, 300), style = wDefaultFrameStyle or wHideTaskbar)
+
+  # about window
+  let textCtrl = TextCtrl(frame, style=wTeRich or wTeMultiLine or wTeReadOnly or wTeCentre)
+  with textCtrl:
+    setStyle(lineSpacing=1.5)
+    writeText("\n")
+    writeText("CtrlAltTab shortcut remapper\n")
+    writeLink(url, url)
+    writeText("\n")
+    writeText("Author\n")
+    writeLink(authorUrl, authorUrl)
+    writeText("\n")
+    resetStyle()
+
+  textctrl.wEvent_TextLink do (event: wEvent):
+    if event.mouseEvent == wEvent_LeftUp:
+      ShellExecute(0, "open", textctrl.range(event.start..<event.end), nil, nil, 5)
+
+  # start
+  if isRemapEnabled:
+    hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
+  if isScreenOnEnabled:
+    SetThreadExecutionState(ES_CONTINUOUS or ES_SYSTEM_REQUIRED or ES_DISPLAY_REQUIRED)
   app.mainLoop()
 
 main()
