@@ -15,6 +15,8 @@ const regScreenOn = "ScreenOn"
 const url = "https://github.com/inv2004/ctrlalttab"
 const authorUrl = "https://github.com/inv2004"
 
+const APP_MUTEX_NAME = r"Local\CTRLALTTAB-UNIQUE-GUID-HERE"
+
 type
   HotkeyData = object
     hHook: HHOOK
@@ -24,6 +26,7 @@ type
     isRemapCtrlTabEnabled: bool
     isRemapCtrlPgEnabled: bool
     frame: wFrame
+    hMutex: HANDLE
 
 var hkData {.threadvar.}: HotkeyData
 
@@ -162,9 +165,17 @@ proc screen_cb(item: ptr TrayMenuItem) {.cdecl.} =
 
 proc quit_cb(_: ptr TrayMenuItem) {.cdecl.} =
   trayExit()
+  CloseHandle(hkData.hMutex)
   quit 0
 
 proc main() =
+  # check running
+  hkData.hMutex = CreateMutex(nil, false, APP_MUTEX_NAME)
+  doAssert hkData.hMutex != 0
+  defer: CloseHandle(hkData.hMutex)
+  if GetLastError() == ERROR_ALREADY_EXISTS:
+    quit 1
+
   # check register values
   hkData.isRemapCtrlTabEnabled = regRead(regPath, regRemapCtrlTab).kind == rkRegError
   hkData.isRemapCtrlPgEnabled = regRead(regPath, regRemapCtrlPg).kind == rkRegError
