@@ -104,9 +104,11 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
 
   else: discard
 
-proc window_cb(_: ptr Tray) {.cdecl.} =
+proc showWindow_cb(_: ptr Tray) {.cdecl.} =
   hkData.frame.center()
   hkData.frame.show()
+  hkData.frame.setTopMost()
+  hkData.frame.setTopMost(false)
 
 proc remapCtrlTab_cb(item: ptr TrayMenuItem) {.cdecl.} =
   let tray = trayGetInstance()
@@ -172,7 +174,7 @@ proc main() =
   let tray = initTray(
     iconFilepath = "icon.ico",
     tooltip = "CtrlAltTab",
-    cb = window_cb,
+    cb = showWindow_cb,
     menus = [
       initTrayMenuItem(text = "Remap CtrlTab", checked = hkData.isRemapCtrlTabEnabled, cb = remapCtrlTab_cb),
       initTrayMenuItem(text = "Remap CtrlPg", checked = hkData.isRemapCtrlPgEnabled, cb = remapCtrlPg_cb),
