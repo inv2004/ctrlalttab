@@ -1,5 +1,7 @@
 # ctrlalttab
 
+![image](.github/images/screen.png)
+
 Remap some windows shortcuts. Simple replacement for powertoys keyboard manager
 
 - triggers alt-tab for ctrl-tab, supports multi tab switch
@@ -10,9 +12,9 @@ Remap some windows shortcuts. Simple replacement for powertoys keyboard manager
 - tray menu
 - stores options in registry `HKEY_CURRENT_USER\SOFTWARE\CtrlAltDel`
 
-## Simple keys remap
+## Preparation
 
-I prefer to remap single keys via `Scancode Map`, that is why I use with with the following regedit:
+I prefer to remap single keys via windows registry value `Scancode Map`, that is why I use ctrlalttab with the following regedit:
 
 ```
 alt <=> ctrl
@@ -21,6 +23,8 @@ ralt => home
 rmenu => home
 home => print screen (maybe will remove)
 ```
+
+amend it for your own needs or use sharpkeys for the same needs
 
 ```
 reg add "HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout" /v "Scancode Map" /t REG_BINARY /d 0000000000000000070000001D00380038001D004FE01DE047E038E047E05DE037E047E000000000
