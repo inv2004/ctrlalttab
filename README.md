@@ -12,7 +12,7 @@ Remap some windows shortcuts. Simple replacement for powertoys keyboard manager
 - tray menu
 - stores options in registry `HKEY_CURRENT_USER\SOFTWARE\CtrlAltDel`
 
-## Preparation
+## preparation
 
 I prefer to remap single keys via windows registry value `Scancode Map`, that is why I use ctrlalttab with the following regedit:
 
