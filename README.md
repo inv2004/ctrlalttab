@@ -41,3 +41,8 @@ reg add "HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout" /v "Scancode Map
 ```
 nimble build -d:release -d:strip --opt:size --app:gui
 ```
+
+or using zig cc (to avoid win defender)
+```
+nimble build --cc:clang --clang.exe="zigcc.cmd" --clang.linkerexe="zigcc.cmd" -d:release -d:strip --opt:size --app:gui
+```
