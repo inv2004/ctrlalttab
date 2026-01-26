@@ -99,9 +99,15 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
         elif modifiers == (wModWin or wModShift) and keyCode == VK_F23: # Lenovo AI Key
           send "{LWINUP}{LSHIFTUP}{HOME}"
           processed = true
-        elif keyCode == VK_CAPITAL: # CAPS
+        elif modifiers == 0 and keyCode == VK_CAPITAL: # CAPS
           if hkData.isRemapCapsEnabled:
             send "{LCTRLDOWN}{LSHIFT}{LCTRLUP}"
+            processed = true
+        elif modifiers == 0 and keyCode == VK_BROWSER_BACK:
+            send "{PGUP}"
+            processed = true
+        elif modifiers == 0 and keyCode == VK_BROWSER_FORWARD:
+            send "{PGDN}"
             processed = true
         else:
           discard
