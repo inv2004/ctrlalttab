@@ -101,7 +101,7 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
           processed = true
         elif modifiers == 0 and keyCode == VK_CAPITAL: # CAPS
           if hkData.isRemapCapsEnabled:
-            send "{LCTRLDOWN}{LSHIFT}{LCTRLUP}"
+            send "{LWINDOWN}{SPACE}{LWINUP}"
             processed = true
         elif modifiers == 0 and keyCode == VK_BROWSER_BACK:
             send "{PGUP}"
