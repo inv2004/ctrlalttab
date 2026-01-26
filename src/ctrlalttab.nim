@@ -10,6 +10,7 @@ import os
 const regPath = r"HKEY_CURRENT_USER\SOFTWARE\CtrlAltDel"
 const regRemapCtrlTab = "RemapCtrlTabDisabled"
 const regRemapCtrlPg = "RemapCtrlPgDisabled"
+const regRemapCaps = "RemapCapsDisabled"
 const regScreenOn = "ScreenOn"
 
 const url = "https://github.com/inv2004/ctrlalttab"
@@ -25,6 +26,7 @@ type
     alttab: bool
     isRemapCtrlTabEnabled: bool
     isRemapCtrlPgEnabled: bool
+    isRemapCapsEnabled: bool
     frame: wFrame
     hMutex: HANDLE
 
@@ -98,8 +100,9 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
           send "{LWINUP}{LSHIFTUP}{HOME}"
           processed = true
         elif keyCode == VK_CAPITAL: # CAPS
-          send "{LCTRLDOWN}{LSHIFT}{LCTRLUP}"
-          processed = true
+          if hkData.isRemapCapsEnabled:
+            send "{LCTRLDOWN}{LSHIFT}{LCTRLUP}"
+            processed = true
         else:
           discard
 
@@ -113,6 +116,15 @@ proc showWindow_cb(_: ptr Tray) {.cdecl.} =
   hkData.frame.setTopMost()
   hkData.frame.setTopMost(false)
 
+proc hook() =
+  if hkData.hHook == 0:
+    hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
+
+proc unhook() =
+  if not (hkData.isRemapCtrlTabEnabled or hkData.isRemapCtrlPgEnabled or hkData.isRemapCapsEnabled):
+    UnhookWindowsHookEx(hkData.hHook)
+    hkData.hHook = 0
+
 proc remapCtrlTab_cb(item: ptr TrayMenuItem) {.cdecl.} =
   let tray = trayGetInstance()
   doAssert not tray.isNil
@@ -121,12 +133,10 @@ proc remapCtrlTab_cb(item: ptr TrayMenuItem) {.cdecl.} =
 
   if hkData.isRemapCtrlTabEnabled:
     regDelete(regPath, regRemapCtrlTab)
-    if not hkData.isRemapCtrlPgEnabled:
-      hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
+    hook()
   else:
     regWrite(regPath, regRemapCtrlTab, 1)
-    if not (hkData.isRemapCtrlTabEnabled or hkData.isRemapCtrlPgEnabled):
-      UnhookWindowsHookEx(hkData.hHook)
+    unhook()
 
   item.checked = cint(hkData.isRemapCtrlTabEnabled)
   trayUpdate(tray)
@@ -139,14 +149,28 @@ proc remapCtrlPg_cb(item: ptr TrayMenuItem) {.cdecl.} =
 
   if hkData.isRemapCtrlPgEnabled:
     regDelete(regPath, regRemapCtrlPg)
-    if not hkData.isRemapCtrlTabEnabled:
-      hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
+    hook()
   else:
     regWrite(regPath, regRemapCtrlPg, 1)
-    if not (hkData.isRemapCtrlTabEnabled or hkData.isRemapCtrlPgEnabled):
-      UnhookWindowsHookEx(hkData.hHook)
+    unhook()
 
   item.checked = cint(hkData.isRemapCtrlPgEnabled)
+  trayUpdate(tray)
+
+proc remapCaps_cb(item: ptr TrayMenuItem) {.cdecl.} =
+  let tray = trayGetInstance()
+  doAssert not tray.isNil
+
+  hkData.isRemapCapsEnabled = not bool(item.checked)
+
+  if hkData.isRemapCapsEnabled:
+    regDelete(regPath, regRemapCaps)
+    hook()
+  else:
+    regWrite(regPath, regRemapCaps, 1)
+    unhook()
+
+  item.checked = cint(hkData.isRemapCapsEnabled)
   trayUpdate(tray)
 
 proc screen_cb(item: ptr TrayMenuItem) {.cdecl.} =
@@ -179,6 +203,7 @@ proc main() =
   # check register values
   hkData.isRemapCtrlTabEnabled = regRead(regPath, regRemapCtrlTab).kind == rkRegError
   hkData.isRemapCtrlPgEnabled = regRead(regPath, regRemapCtrlPg).kind == rkRegError
+  hkData.isRemapCapsEnabled = regRead(regPath, regRemapCaps).kind == rkRegError
   let isScreenOnEnabled = regRead(regPath, regScreenOn).kind != rkRegError
 
   # tray
@@ -189,6 +214,7 @@ proc main() =
     menus = [
       initTrayMenuItem(text = "Remap CtrlTab", checked = hkData.isRemapCtrlTabEnabled, cb = remapCtrlTab_cb),
       initTrayMenuItem(text = "Remap CtrlPg", checked = hkData.isRemapCtrlPgEnabled, cb = remapCtrlPg_cb),
+      initTrayMenuItem(text = "Remap Caps", checked = hkData.isRemapCapsEnabled, cb = remapCaps_cb),
       initTrayMenuItem(text = "-"),
       initTrayMenuItem(text = "Screen On", checked = isScreenOnEnabled, cb = screen_cb),
       initTrayMenuItem(text = "-"),
