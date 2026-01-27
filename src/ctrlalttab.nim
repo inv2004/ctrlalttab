@@ -96,18 +96,21 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
               processed = true
           else:
             discard
-        elif modifiers == (wModWin or wModShift) and keyCode == VK_F23: # Lenovo AI Key
-          send "{LWINUP}{LSHIFTUP}{HOME}"
-          processed = true
         elif modifiers == 0 and keyCode == VK_CAPITAL: # CAPS
           if hkData.isRemapCapsEnabled:
             send "{LWINDOWN}{SPACE}{LWINUP}"
             processed = true
         elif modifiers == 0 and keyCode == VK_BROWSER_BACK:
+          if hkData.isRemapCtrlPgEnabled:
             send "{PGUP}"
             processed = true
         elif modifiers == 0 and keyCode == VK_BROWSER_FORWARD:
+          if hkData.isRemapCtrlPgEnabled:
             send "{PGDN}"
+            processed = true
+        elif modifiers == (wModWin or wModShift) and keyCode == VK_F23: # Lenovo AI Key
+          if hkData.isRemapCtrlPgEnabled:
+            send "{LWINUP}{LSHIFTUP}{HOME}"
             processed = true
         else:
           discard
@@ -230,7 +233,7 @@ proc main() =
   doAssert trayInit(addr tray) == 0
 
   let app = App(wSystemDpiAware)
-  hkData.frame = Frame(title="CtrlAltTab", size=(400, 300), style = wDefaultFrameStyle or wHideTaskbar)
+  hkData.frame = Frame(title="CtrlAltTab", size=(400, 400), style = wDefaultFrameStyle or wHideTaskbar)
 
   # about window
   let textCtrl = TextCtrl(hkData.frame, style=wTeRich or wTeMultiLine or wTeReadOnly or wTeCentre)
@@ -242,6 +245,13 @@ proc main() =
     writeText("\n")
     writeText("Author\n")
     writeLink(authorUrl, authorUrl)
+    writeText("\n\n")
+    writeText("Alt-Tab => Ctrl-Tab\n")
+    writeText("Ctrl-PgUp|Down => Ctrl-[|]\n")
+    writeText("Caps => Win-Space\n")
+    writeText("Back/Forward (Lenovo PgUp/Down) => PgUp|Down\n")
+    writeText("Win+Shift+F23 (Lenovo AI key) => Home\n")
+
     writeText("\n")
     resetStyle()
 
