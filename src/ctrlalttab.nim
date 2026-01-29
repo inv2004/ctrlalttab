@@ -1,10 +1,10 @@
-import winim/[lean, inc/shellapi]
+import about
+
+import winim/lean
 import wNim/[wApp, wFrame, wTextCtrl]
 import wAuto
 
 import libtray
-
-import std/with
 # import os
 
 const regPath = r"HKEY_CURRENT_USER\SOFTWARE\CtrlAltDel"
@@ -12,9 +12,6 @@ const regRemapCtrlTab = "RemapCtrlTabDisabled"
 const regRemapCtrlPg = "RemapCtrlPgDisabled"
 const regRemapCaps = "RemapCapsDisabled"
 const regScreenOn = "ScreenOn"
-
-const url = "https://github.com/inv2004/ctrlalttab"
-const authorUrl = "https://github.com/inv2004"
 
 const APP_MUTEX_NAME = r"Local\CTRLALTTAB-UNIQUE-GUID-HERE"
 
@@ -101,7 +98,7 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
 
   result = if processed: LRESULT 1 else: CallNextHookEx(0, nCode, wParam, lParam)
 
-proc showWindow_cb(_: ptr Tray) {.cdecl.} =
+proc showWindowCallBack(_: ptr Tray) {.cdecl.} =
   hkData.frame.center()
   hkData.frame.show()
   hkData.frame.setTopMost()
@@ -116,46 +113,25 @@ proc unhook() =
     UnhookWindowsHookEx(hkData.hHook)
     hkData.hHook = 0
 
-proc remapCtrlTab_cb(item: ptr TrayMenuItem) {.cdecl.} =
-  let tray = trayGetInstance()
-  doAssert not tray.isNil
-  hkData.isRemapCtrlTabEnabled = not bool(item.checked)
-  if hkData.isRemapCtrlTabEnabled:
-    regDelete(regPath, regRemapCtrlTab)
-    hook()
-  else:
-    regWrite(regPath, regRemapCtrlTab, 1)
-    unhook()
-  item.checked = cint(hkData.isRemapCtrlTabEnabled)
-  trayUpdate(tray)
+template genCallback(fnName, hkDataVal: untyped, regVal: string) =
+  proc fnName(item: ptr TrayMenuItem) {.cdecl.} =
+    let tray = trayGetInstance()
+    doAssert not tray.isNil
+    hkData.hkDataVal = not bool(item.checked)
+    if hkData.hkDataVal:
+      regDelete(regPath, regVal)
+      hook()
+    else:
+      regWrite(regPath, regVal, 1)
+      unhook()
+    item.checked = cint(hkData.hkDataVal)
+    trayUpdate(tray)
 
-proc remapCtrlPg_cb(item: ptr TrayMenuItem) {.cdecl.} =
-  let tray = trayGetInstance()
-  doAssert not tray.isNil
-  hkData.isRemapCtrlPgEnabled = not bool(item.checked)
-  if hkData.isRemapCtrlPgEnabled:
-    regDelete(regPath, regRemapCtrlPg)
-    hook()
-  else:
-    regWrite(regPath, regRemapCtrlPg, 1)
-    unhook()
-  item.checked = cint(hkData.isRemapCtrlPgEnabled)
-  trayUpdate(tray)
+genCallback(remapCtrlTabCallBack, isRemapCtrlTabEnabled, regRemapCtrlTab)
+genCallback(remapCtrlPgCallBack, isRemapCtrlPgEnabled, regRemapCtrlPg)
+genCallback(remapCapsCallBack, isRemapCapsEnabled, regRemapCaps)
 
-proc remapCaps_cb(item: ptr TrayMenuItem) {.cdecl.} =
-  let tray = trayGetInstance()
-  doAssert not tray.isNil
-  hkData.isRemapCapsEnabled = not bool(item.checked)
-  if hkData.isRemapCapsEnabled:
-    regDelete(regPath, regRemapCaps)
-    hook()
-  else:
-    regWrite(regPath, regRemapCaps, 1)
-    unhook()
-  item.checked = cint(hkData.isRemapCapsEnabled)
-  trayUpdate(tray)
-
-proc screen_cb(item: ptr TrayMenuItem) {.cdecl.} =
+proc screenCallBack(item: ptr TrayMenuItem) {.cdecl.} =
   let tray = trayGetInstance()
   doAssert not tray.isNil
   item.checked = cint(not bool(item.checked))
@@ -167,10 +143,44 @@ proc screen_cb(item: ptr TrayMenuItem) {.cdecl.} =
     SetThreadExecutionState(ES_CONTINUOUS)
   trayUpdate(tray)
 
-proc quit_cb(_: ptr TrayMenuItem) {.cdecl.} =
+proc quitCallBack(_: ptr TrayMenuItem) {.cdecl.} =
   trayExit()
   CloseHandle(hkData.hMutex)
   quit 0
+
+proc initApp(isScreenOnEnabled: bool): wApp =
+  # check register values
+  hkData.isRemapCtrlTabEnabled = regRead(regPath, regRemapCtrlTab).kind == rkRegError
+  hkData.isRemapCtrlPgEnabled = regRead(regPath, regRemapCtrlPg).kind == rkRegError
+  hkData.isRemapCapsEnabled = regRead(regPath, regRemapCaps).kind == rkRegError
+
+  # tray
+  let tray = initTray(
+    iconFilepath = "ctrlalttab.exe",
+    tooltip = "CtrlAltTab",
+    cb = showWindowCallBack,
+    menus = [
+      initTrayMenuItem(text = "Remap CtrlTab", checked = hkData.isRemapCtrlTabEnabled, cb = remapCtrlTabCallBack),
+      initTrayMenuItem(text = "Remap CtrlPg", checked = hkData.isRemapCtrlPgEnabled, cb = remapCtrlPgCallBack),
+      initTrayMenuItem(text = "Remap Caps", checked = hkData.isRemapCapsEnabled, cb = remapCapsCallBack),
+      initTrayMenuItem(text = "-"),
+      initTrayMenuItem(text = "Screen On", checked = isScreenOnEnabled, cb = screenCallBack),
+      initTrayMenuItem(text = "-"),
+      initTrayMenuItem(text = "Quit", cb = quitCallBack)
+    ]
+  )
+  doAssert trayInit(addr tray) == 0
+
+  result = App(wSystemDpiAware)
+  hkData.frame = Frame(title="CtrlAltTab", size=(400, 400), style = wDefaultFrameStyle or wHideTaskbar)
+  #hkData.frame.disableMaximizeButton()
+  hkData.frame.wEvent_Close do(event: wEvent):
+    quitCallBack(nil)
+  hkData.frame.wEvent_Minimize do(event: wEvent):
+    hkData.frame.hide()
+
+  # about window
+  about(hkData.frame)
 
 proc main() =
   # check running
@@ -180,62 +190,9 @@ proc main() =
   if GetLastError() == ERROR_ALREADY_EXISTS:
     quit 1
 
-  # check register values
-  hkData.isRemapCtrlTabEnabled = regRead(regPath, regRemapCtrlTab).kind == rkRegError
-  hkData.isRemapCtrlPgEnabled = regRead(regPath, regRemapCtrlPg).kind == rkRegError
-  hkData.isRemapCapsEnabled = regRead(regPath, regRemapCaps).kind == rkRegError
   let isScreenOnEnabled = regRead(regPath, regScreenOn).kind != rkRegError
+  let app = initApp(isScreenOnEnabled)
 
-  # tray
-  let tray = initTray(
-    iconFilepath = "ctrlalttab.exe",
-    tooltip = "CtrlAltTab",
-    cb = showWindow_cb,
-    menus = [
-      initTrayMenuItem(text = "Remap CtrlTab", checked = hkData.isRemapCtrlTabEnabled, cb = remapCtrlTab_cb),
-      initTrayMenuItem(text = "Remap CtrlPg", checked = hkData.isRemapCtrlPgEnabled, cb = remapCtrlPg_cb),
-      initTrayMenuItem(text = "Remap Caps", checked = hkData.isRemapCapsEnabled, cb = remapCaps_cb),
-      initTrayMenuItem(text = "-"),
-      initTrayMenuItem(text = "Screen On", checked = isScreenOnEnabled, cb = screen_cb),
-      initTrayMenuItem(text = "-"),
-      initTrayMenuItem(text = "Quit", cb = quit_cb)
-    ]
-  )
-  doAssert trayInit(addr tray) == 0
-
-  let app = App(wSystemDpiAware)
-  hkData.frame = Frame(title="CtrlAltTab", size=(400, 400), style = wDefaultFrameStyle or wHideTaskbar)
-  #hkData.frame.disableMaximizeButton()
-  hkData.frame.wEvent_Close do (event: wEvent):
-    trayExit()
-  hkData.frame.wEvent_Minimize do (event: wEvent):
-    hkData.frame.hide()
-
-  # about window
-  let textCtrl = TextCtrl(hkData.frame, style=wTeRich or wTeMultiLine or wTeReadOnly or wTeCentre)
-  with textCtrl:
-    setStyle(lineSpacing=1.5)
-    writeText("\n")
-    writeText("CtrlAltTab shortcut remapper\n")
-    writeLink(url, url)
-    writeText("\n")
-    writeText("Author\n")
-    writeLink(authorUrl, authorUrl)
-    writeText("\n\n")
-    writeText("Alt-Tab => Ctrl-Tab\n")
-    writeText("Ctrl-PgUp|Down => Ctrl-[|]\n")
-    writeText("Caps => Win-Space\n")
-    writeText("Back/Forward (Lenovo PgUp/Down) => PgUp|Down\n")
-    writeText("Win+Shift+F23 (Lenovo AI key) => Home\n")
-
-    writeText("\n")
-    resetStyle()
-
-  textctrl.wEvent_TextLink do (event: wEvent):
-    if event.mouseEvent == wEvent_LeftUp:
-      ShellExecute(0, "open", textctrl.range(event.start..<event.end), nil, nil, 5)
-
-  # start
   if hkData.isRemapCtrlTabEnabled or hkData.isRemapCtrlPgEnabled:
     hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
   if isScreenOnEnabled:

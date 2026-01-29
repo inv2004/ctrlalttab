@@ -13,3 +13,6 @@ bin           = @["ctrlalttab"]
 requires "nim == 2.0.8"
 requires "wAuto"
 requires "libtray"
+
+after build:
+  exec "rcedit.exe ctrlalttab.exe --set-icon icon.ico"
