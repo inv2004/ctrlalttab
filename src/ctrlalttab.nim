@@ -119,55 +119,45 @@ proc unhook() =
 proc remapCtrlTab_cb(item: ptr TrayMenuItem) {.cdecl.} =
   let tray = trayGetInstance()
   doAssert not tray.isNil
-
   hkData.isRemapCtrlTabEnabled = not bool(item.checked)
-
   if hkData.isRemapCtrlTabEnabled:
     regDelete(regPath, regRemapCtrlTab)
     hook()
   else:
     regWrite(regPath, regRemapCtrlTab, 1)
     unhook()
-
   item.checked = cint(hkData.isRemapCtrlTabEnabled)
   trayUpdate(tray)
 
 proc remapCtrlPg_cb(item: ptr TrayMenuItem) {.cdecl.} =
   let tray = trayGetInstance()
   doAssert not tray.isNil
-
   hkData.isRemapCtrlPgEnabled = not bool(item.checked)
-
   if hkData.isRemapCtrlPgEnabled:
     regDelete(regPath, regRemapCtrlPg)
     hook()
   else:
     regWrite(regPath, regRemapCtrlPg, 1)
     unhook()
-
   item.checked = cint(hkData.isRemapCtrlPgEnabled)
   trayUpdate(tray)
 
 proc remapCaps_cb(item: ptr TrayMenuItem) {.cdecl.} =
   let tray = trayGetInstance()
   doAssert not tray.isNil
-
   hkData.isRemapCapsEnabled = not bool(item.checked)
-
   if hkData.isRemapCapsEnabled:
     regDelete(regPath, regRemapCaps)
     hook()
   else:
     regWrite(regPath, regRemapCaps, 1)
     unhook()
-
   item.checked = cint(hkData.isRemapCapsEnabled)
   trayUpdate(tray)
 
 proc screen_cb(item: ptr TrayMenuItem) {.cdecl.} =
   let tray = trayGetInstance()
   doAssert not tray.isNil
-
   item.checked = cint(not bool(item.checked))
   if bool(item.checked):
     regWrite(regPath, regScreenOn, 1)
@@ -175,7 +165,6 @@ proc screen_cb(item: ptr TrayMenuItem) {.cdecl.} =
   else:
     regDelete(regPath, regScreenOn)
     SetThreadExecutionState(ES_CONTINUOUS)
-    
   trayUpdate(tray)
 
 proc quit_cb(_: ptr TrayMenuItem) {.cdecl.} =
@@ -199,7 +188,7 @@ proc main() =
 
   # tray
   let tray = initTray(
-    iconFilepath = "icon.ico",
+    iconFilepath = "ctrlalttab.exe",
     tooltip = "CtrlAltTab",
     cb = showWindow_cb,
     menus = [
@@ -216,8 +205,11 @@ proc main() =
 
   let app = App(wSystemDpiAware)
   hkData.frame = Frame(title="CtrlAltTab", size=(400, 400), style = wDefaultFrameStyle or wHideTaskbar)
-  hkData.frame.wIdExit do ():
-    echo "close"
+  #hkData.frame.disableMaximizeButton()
+  hkData.frame.wEvent_Close do (event: wEvent):
+    trayExit()
+  hkData.frame.wEvent_Minimize do (event: wEvent):
+    hkData.frame.hide()
 
   # about window
   let textCtrl = TextCtrl(hkData.frame, style=wTeRich or wTeMultiLine or wTeReadOnly or wTeCentre)
