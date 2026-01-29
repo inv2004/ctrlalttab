@@ -50,6 +50,9 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
     of VK_LWIN, VK_RWIN: hkData.lastModifiers = hkData.lastModifiers and (not wModWin)
     else: discard
 
+    if hkData.caps:
+      hkData.caps = false
+
   of WM_KEYDOWN, WM_SYSKEYDOWN:
     case int kbd.vkCode
 
@@ -65,22 +68,20 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
     else:
       let keyCode = int kbd.vkCode
       if keyCode != hkData.lastKeyCode:
-        if hkData.caps and hkData.lastModifiers == wModWin and keyCode == VK_SPACE:
-          hkData.caps = false
         if hkData.isRemapCtrlTabEnabled and hkData.lastModifiers == wModCtrl and keyCode == VK_TAB:
           send "{LCTRLUP}{LALTDOWN}{TAB}"
           hkData.alttab = true
           processed = true
         elif hkData.isRemapCapsEnabled and not hkData.caps and hkData.lastModifiers == 0 and keyCode == VK_CAPITAL:
           hkData.caps = true
-          send "{LWINDOWN}{SPACE}{LWINUP}"
+          send "{LCTRLDOWN}{LSHIFTDOWN}{LCTRLUP}{LSHIFTUP}"
           processed = true
         elif hkData.isRemapCtrlPgEnabled:
           if hkData.lastModifiers == wModCtrl and keyCode == VK_OEM_4:
             send "{LCTRLDOWN}{PGUP}"
             processed = true
           elif hkData.lastModifiers == wModCtrl and keyCode == VK_OEM_6:
-            send "{LCTRLDOWN}{PGUP}"
+            send "{LCTRLDOWN}{PGDN}"
             processed = true
           elif hkData.lastModifiers == 0 and keyCode == VK_BROWSER_BACK:
             send "{PGUP}"
@@ -172,7 +173,7 @@ proc initApp(isScreenOnEnabled: bool): wApp =
   doAssert trayInit(addr tray) == 0
 
   result = App(wSystemDpiAware)
-  hkData.frame = Frame(title="CtrlAltTab", size=(400, 400), style = wDefaultFrameStyle or wHideTaskbar)
+  hkData.frame = Frame(title="CtrlAltTab", size=(600, 600), style = wDefaultFrameStyle or wHideTaskbar)
   #hkData.frame.disableMaximizeButton()
   hkData.frame.wEvent_Close do(event: wEvent):
     quitCallBack(nil)
@@ -193,8 +194,8 @@ proc main() =
   let isScreenOnEnabled = regRead(regPath, regScreenOn).kind != rkRegError
   let app = initApp(isScreenOnEnabled)
 
-  if hkData.isRemapCtrlTabEnabled or hkData.isRemapCtrlPgEnabled:
-    hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
+  if hkData.isRemapCtrlTabEnabled or hkData.isRemapCtrlPgEnabled or hkData.isRemapCapsEnabled:
+    hook()
   if isScreenOnEnabled:
     SetThreadExecutionState(ES_CONTINUOUS or ES_SYSTEM_REQUIRED or ES_DISPLAY_REQUIRED)
   app.mainLoop()
