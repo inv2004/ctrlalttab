@@ -50,6 +50,9 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
     of VK_LWIN, VK_RWIN: hkData.lastModifiers = hkData.lastModifiers and (not wModWin)
     else: discard
 
+    if hkData.caps:
+      hkData.caps = false
+
   of WM_KEYDOWN, WM_SYSKEYDOWN:
     case int kbd.vkCode
 
@@ -65,15 +68,13 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
     else:
       let keyCode = int kbd.vkCode
       if keyCode != hkData.lastKeyCode:
-        if hkData.caps and hkData.lastModifiers == wModWin and keyCode == VK_SPACE:
-          hkData.caps = false
         if hkData.isRemapCtrlTabEnabled and hkData.lastModifiers == wModCtrl and keyCode == VK_TAB:
           send "{LCTRLUP}{LALTDOWN}{TAB}"
           hkData.alttab = true
           processed = true
         elif hkData.isRemapCapsEnabled and not hkData.caps and hkData.lastModifiers == 0 and keyCode == VK_CAPITAL:
           hkData.caps = true
-          send "{LWINDOWN}{SPACE}{LWINUP}"
+          send "{LCTRLDOWN}{LSHIFTDOWN}{LCTRLUP}{LSHIFTUP}"
           processed = true
         elif hkData.isRemapCtrlPgEnabled:
           if hkData.lastModifiers == wModCtrl and keyCode == VK_OEM_4:
