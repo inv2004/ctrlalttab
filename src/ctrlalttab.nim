@@ -5,7 +5,7 @@ import wAuto
 import libtray
 
 import std/with
-import os
+# import os
 
 const regPath = r"HKEY_CURRENT_USER\SOFTWARE\CtrlAltDel"
 const regRemapCtrlTab = "RemapCtrlTabDisabled"
@@ -41,19 +41,17 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
   case int wParam
   of WM_KEYUP, WM_SYSKEYUP:
     hkData.lastKeyCode = 0
-    var isMod = false
 
     case int kbd.vkCode
-    of VK_LCONTROL, VK_RCONTROL:
+    of VK_LCONTROL:
       hkData.lastModifiers = hkData.lastModifiers and (not wModCtrl)
-      isMod = true
       if hkData.alttab:
-        sleep(15)  # TODO: to prevent open alt-tab on fast click
-        send "{ENTER}"
+        # sleep(15)  # TODO: to prevent open alt-tab on fast click
+        send "{LALTUP}"
         hkData.alttab = false
-    of VK_LMENU, VK_RMENU: hkData.lastModifiers = hkData.lastModifiers and (not wModAlt); isMod = true
-    of VK_LSHIFT, VK_RSHIFT: hkData.lastModifiers = hkData.lastModifiers and (not wModShift); isMod = true
-    of VK_LWIN, VK_RWIN: hkData.lastModifiers = hkData.lastModifiers and (not wModWin); isMod = true
+    of VK_LMENU, VK_RMENU: hkData.lastModifiers = hkData.lastModifiers and (not wModAlt)
+    of VK_LSHIFT, VK_RSHIFT: hkData.lastModifiers = hkData.lastModifiers and (not wModShift)
+    of VK_LWIN, VK_RWIN: hkData.lastModifiers = hkData.lastModifiers and (not wModWin)
     else: discard
 
   of WM_KEYDOWN, WM_SYSKEYDOWN:
@@ -78,42 +76,31 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
         if (GetAsyncKeyState(VK_LWIN) and 0x8000) != 0 or (GetAsyncKeyState(VK_RWIN) and 0x8000) != 0: modifiers = modifiers or wModWin
         hkData.lastModifiers = modifiers
 
+
       if keyCode != hkData.lastKeyCode:
-        if modifiers == wModCtrl:
-          case keyCode
-          of VK_TAB:
-            if hkData.isRemapCtrlTabEnabled:
-              send "!{TAB}"
-              processed = true
-              hkData.alttab = true
-          of 219:
-            if hkData.isRemapCtrlPgEnabled:
-              send "{LCTRLDOWN}{PGUP}"
-              processed = true
-          of 221:
-            if hkData.isRemapCtrlPgEnabled:
-              send "{LCTRLDOWN}{PGDN}"
-              processed = true
-          else:
-            discard
-        elif modifiers == 0 and keyCode == VK_CAPITAL: # CAPS
-          if hkData.isRemapCapsEnabled:
-            send "{LWINDOWN}{SPACE}{LWINUP}"
+        if hkData.isRemapCtrlTabEnabled and modifiers == wModCtrl and keyCode == VK_TAB:
+          send "{LCTRLUP}{LALTDOWN}{TAB}"
+          hkData.alttab = true
+          processed = true
+        elif hkData.isRemapCapsEnabled and modifiers == 0 and keyCode == VK_CAPITAL:
+          send "{LWINDOWN}{SPACE}{LWINUP}"
+          processed = true
+        elif hkData.isRemapCtrlPgEnabled:
+          if modifiers == wModCtrl and keyCode == VK_OEM_4:
+            send "{LCTRLDOWN}{PGUP}"
             processed = true
-        elif modifiers == 0 and keyCode == VK_BROWSER_BACK:
-          if hkData.isRemapCtrlPgEnabled:
+          elif modifiers == wModCtrl and keyCode == VK_OEM_6:
+            send "{LCTRLDOWN}{PGUP}"
+            processed = true
+          elif modifiers == 0 and keyCode == VK_BROWSER_BACK:
             send "{PGUP}"
             processed = true
-        elif modifiers == 0 and keyCode == VK_BROWSER_FORWARD:
-          if hkData.isRemapCtrlPgEnabled:
+          elif modifiers == 0 and keyCode == VK_BROWSER_FORWARD:
             send "{PGDN}"
             processed = true
-        elif modifiers == (wModWin or wModShift) and keyCode == VK_F23: # Lenovo AI Key
-          if hkData.isRemapCtrlPgEnabled:
+          elif modifiers == (wModWin or wModShift) and keyCode == VK_F23: # Lenovo AI Key:
             send "{LWINUP}{LSHIFTUP}{HOME}"
             processed = true
-        else:
-          discard
 
       hkData.lastKeyCode = keyCode
 
@@ -234,6 +221,8 @@ proc main() =
 
   let app = App(wSystemDpiAware)
   hkData.frame = Frame(title="CtrlAltTab", size=(400, 400), style = wDefaultFrameStyle or wHideTaskbar)
+  hkData.frame.wIdExit do ():
+    echo "close"
 
   # about window
   let textCtrl = TextCtrl(hkData.frame, style=wTeRich or wTeMultiLine or wTeReadOnly or wTeCentre)
