@@ -24,6 +24,7 @@ type
     lastKeyCode: int
     lastModifiers: int
     alttab: bool
+    caps: bool
     isRemapCtrlTabEnabled: bool
     isRemapCtrlPgEnabled: bool
     isRemapCapsEnabled: bool
@@ -35,8 +36,6 @@ var hkData {.threadvar.}: HotkeyData
 proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} =
   var processed = false
   let kbd = cast[LPKBDLLHOOKSTRUCT](lParam)
-  defer:
-    result = if processed: LRESULT 1 else: CallNextHookEx(0, nCode, wParam, lParam)
 
   case int wParam
   of WM_KEYUP, WM_SYSKEYUP:
@@ -68,43 +67,39 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
 
     else:
       let keyCode = int kbd.vkCode
-      var modifiers = 0
-      if hkData.lastModifiers != 0:
-        if (GetAsyncKeyState(VK_CONTROL) and 0x8000) != 0: modifiers = modifiers or wModCtrl
-        if (GetAsyncKeyState(VK_MENU) and 0x8000) != 0: modifiers = modifiers or wModAlt
-        if (GetAsyncKeyState(VK_SHIFT) and 0x8000) != 0: modifiers = modifiers or wModShift
-        if (GetAsyncKeyState(VK_LWIN) and 0x8000) != 0 or (GetAsyncKeyState(VK_RWIN) and 0x8000) != 0: modifiers = modifiers or wModWin
-        hkData.lastModifiers = modifiers
-
-
       if keyCode != hkData.lastKeyCode:
-        if hkData.isRemapCtrlTabEnabled and modifiers == wModCtrl and keyCode == VK_TAB:
+        if hkData.caps and hkData.lastModifiers == wModWin and keyCode == VK_SPACE:
+          hkData.caps = false
+        if hkData.isRemapCtrlTabEnabled and hkData.lastModifiers == wModCtrl and keyCode == VK_TAB:
           send "{LCTRLUP}{LALTDOWN}{TAB}"
           hkData.alttab = true
           processed = true
-        elif hkData.isRemapCapsEnabled and modifiers == 0 and keyCode == VK_CAPITAL:
+        elif hkData.isRemapCapsEnabled and not hkData.caps and hkData.lastModifiers == 0 and keyCode == VK_CAPITAL:
+          hkData.caps = true
           send "{LWINDOWN}{SPACE}{LWINUP}"
           processed = true
         elif hkData.isRemapCtrlPgEnabled:
-          if modifiers == wModCtrl and keyCode == VK_OEM_4:
+          if hkData.lastModifiers == wModCtrl and keyCode == VK_OEM_4:
             send "{LCTRLDOWN}{PGUP}"
             processed = true
-          elif modifiers == wModCtrl and keyCode == VK_OEM_6:
+          elif hkData.lastModifiers == wModCtrl and keyCode == VK_OEM_6:
             send "{LCTRLDOWN}{PGUP}"
             processed = true
-          elif modifiers == 0 and keyCode == VK_BROWSER_BACK:
+          elif hkData.lastModifiers == 0 and keyCode == VK_BROWSER_BACK:
             send "{PGUP}"
             processed = true
-          elif modifiers == 0 and keyCode == VK_BROWSER_FORWARD:
+          elif hkData.lastModifiers == 0 and keyCode == VK_BROWSER_FORWARD:
             send "{PGDN}"
             processed = true
-          elif modifiers == (wModWin or wModShift) and keyCode == VK_F23: # Lenovo AI Key:
+          elif hkData.lastModifiers == (wModWin or wModShift) and keyCode == VK_F23: # Lenovo AI Key:
             send "{LWINUP}{LSHIFTUP}{HOME}"
             processed = true
 
       hkData.lastKeyCode = keyCode
 
   else: discard
+
+  result = if processed: LRESULT 1 else: CallNextHookEx(0, nCode, wParam, lParam)
 
 proc showWindow_cb(_: ptr Tray) {.cdecl.} =
   hkData.frame.center()
