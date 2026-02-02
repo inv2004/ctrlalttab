@@ -2,15 +2,15 @@
 
 ![image](.github/images/screen.png)
 
-Remaps some windows _shortcuts_. Simple replacement for powertoys keyboard manager
+The tool remaps some windows _shortcuts_. Simple replacement for powertoys keyboard manager
 
-The tool remaps _only_ shortcuts because single keys remap is much better via `Scancode Map` or SharpKeys
+\* _only_ shortcuts because single key remap is much better via `Scancode Map` or SharpKeys
 
-- `alt-tab` for ctrl-tab, supports multi tab switch. Could be useful is you `swap ctrl<=>alt`
-- `ctrl+\[` / `]`, to ctrl+pgup / down
-- `caps` to Alt+Shift # Language switch
-- `win+shift+f23` to home # lenovo AI key. Good is right ctrl is mapped to `end`
-- `screen-on` functionality
+- `Alt-Tab` for Ctrl-Tab, supports multi tab switch. Could be useful is you swap `Ctrl<=>Alt`
+- `Ctrl+\[` / `]`, to Ctrl+PageUp / PageDown
+- `Caps` to Alt+Shift # Language switch
+- `Win+Shift+F23` to home # lenovo AI key. Good is right ctrl is mapped to `End`
+- `Screen-On` functionality
 - tray menu
 - saves settings in registry `HKEY_CURRENT_USER\SOFTWARE\CtrlAltDel`
 - autorun switch
