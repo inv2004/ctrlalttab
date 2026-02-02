@@ -1,3 +1,4 @@
+import consts except regAutoRunPath
 import about
 
 import winim/lean
@@ -5,17 +6,6 @@ import wNim/[wApp, wFrame, wTextCtrl]
 import wAuto
 
 import libtray
-# import os
-
-const regPath = r"HKEY_CURRENT_USER\SOFTWARE\CtrlAltDel"
-const regRemapCtrlTab = "RemapCtrlTabDisabled"
-const regRemapCtrlPg = "RemapCtrlPgDisabled"
-const regRemapCaps = "RemapCapsDisabled"
-const regScreenOn = "ScreenOn"
-
-const regAutoRunPath = r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run"
-
-const APP_MUTEX_NAME = r"Local\CTRLALTTAB-UNIQUE-GUID-HERE"
 
 type
   HotkeyData = object
@@ -45,7 +35,6 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
     of VK_LCONTROL:
       hkData.lastModifiers = hkData.lastModifiers and (not wModCtrl)
       if hkData.alttab:
-        # sleep(15)  # TODO: to prevent open alt-tab on fast click
         send "{LALTUP}"
         hkData.alttab = false
     of VK_LMENU, VK_RMENU: hkData.lastModifiers = hkData.lastModifiers and (not wModAlt)
@@ -69,34 +58,33 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
       else: discard
 
     else:
-      let keyCode = int kbd.vkCode
-      if keyCode != hkData.lastKeyCode:
-        if hkData.isRemapCtrlTabEnabled and hkData.lastModifiers == wModCtrl and keyCode == VK_TAB:
+      if kbd.vkCode != hkData.lastKeyCode:
+        if hkData.isRemapCtrlTabEnabled and hkData.lastModifiers == wModCtrl and kbd.vkCode == VK_TAB:
           send "{LCTRLUP}{LALTDOWN}{TAB}"
           hkData.alttab = true
           processed = true
-        elif hkData.isRemapCapsEnabled and not hkData.caps and hkData.lastModifiers == 0 and keyCode == VK_CAPITAL:
+        elif hkData.isRemapCapsEnabled and not hkData.caps and hkData.lastModifiers == 0 and kbd.vkCode == VK_CAPITAL:
           hkData.caps = true
           send "{LCTRLDOWN}{LSHIFTDOWN}{LCTRLUP}{LSHIFTUP}"
           processed = true
         elif hkData.isRemapCtrlPgEnabled:
-          if hkData.lastModifiers == wModCtrl and keyCode == VK_OEM_4:
+          if hkData.lastModifiers == wModCtrl and kbd.vkCode == VK_OEM_4:
             send "{LCTRLDOWN}{PGUP}"
             processed = true
-          elif hkData.lastModifiers == wModCtrl and keyCode == VK_OEM_6:
+          elif hkData.lastModifiers == wModCtrl and kbd.vkCode == VK_OEM_6:
             send "{LCTRLDOWN}{PGDN}"
             processed = true
-          elif hkData.lastModifiers == 0 and keyCode == VK_BROWSER_BACK:
+          elif hkData.lastModifiers == 0 and kbd.vkCode == VK_BROWSER_BACK:
             send "{PGUP}"
             processed = true
-          elif hkData.lastModifiers == 0 and keyCode == VK_BROWSER_FORWARD:
+          elif hkData.lastModifiers == 0 and kbd.vkCode == VK_BROWSER_FORWARD:
             send "{PGDN}"
             processed = true
-          elif hkData.lastModifiers == (wModWin or wModShift) and keyCode == VK_F23: # Lenovo AI Key:
+          elif hkData.lastModifiers == (wModWin or wModShift) and kbd.vkCode == VK_F23: # Lenovo AI Key:
             send "{LWINUP}{LSHIFTUP}{HOME}"
             processed = true
 
-      hkData.lastKeyCode = keyCode
+      hkData.lastKeyCode = kbd.vkCode
 
   else: discard
 
@@ -108,14 +96,18 @@ proc showWindowCallBack(_: ptr Tray) {.cdecl.} =
   hkData.frame.setTopMost()
   hkData.frame.setTopMost(false)
 
-proc isHookNeeded(): bool =
+proc hookCondition(): bool =
   hkData.isRemapCtrlTabEnabled or hkData.isRemapCtrlPgEnabled or hkData.isRemapCapsEnabled
 
 proc hook() =
-  doAssert hkData.hHook == 0
-  hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
+  if hookCondition():
+    if hkData.hHook == 0:
+      hkData.lastModifiers = 0
+      hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
 
-proc unhook() =
+proc unhook(force = false) =
+  if not force and hookCondition():
+    return
   doAssert hkData.hHook != 0
   UnhookWindowsHookEx(hkData.hHook)
   hkData.hHook = 0
@@ -126,27 +118,27 @@ template genCallback(fnName, hkDataVal: untyped, regVal: string) =
     doAssert not tray.isNil
     hkData.hkDataVal = not bool(item.checked)
     if hkData.hkDataVal:
-      regDelete(regPath, regVal)
-      if isHookNeeded(): hook()
+      regDelete(REG_PATH, regVal)
+      hook()
     else:
-      regWrite(regPath, regVal, 1)
-      if not isHookNeeded(): unhook()
+      regWrite(REG_PATH, regVal, 1)
+      unhook()
     item.checked = cint(hkData.hkDataVal)
     trayUpdate(tray)
 
-genCallback(remapCtrlTabCallBack, isRemapCtrlTabEnabled, regRemapCtrlTab)
-genCallback(remapCtrlPgCallBack, isRemapCtrlPgEnabled, regRemapCtrlPg)
-genCallback(remapCapsCallBack, isRemapCapsEnabled, regRemapCaps)
+genCallback(remapCtrlTabCallBack, isRemapCtrlTabEnabled, REG_REMAP_CTRLTAB_VAL)
+genCallback(remapCtrlPgCallBack, isRemapCtrlPgEnabled, REG_REMAP_CTRLPG_VAL)
+genCallback(remapCapsCallBack, isRemapCapsEnabled, REG_REMAP_CAPS)
 
 proc screenCallBack(item: ptr TrayMenuItem) {.cdecl.} =
   let tray = trayGetInstance()
   doAssert not tray.isNil
   item.checked = cint(not bool(item.checked))
   if bool(item.checked):
-    regWrite(regPath, regScreenOn, 1)
+    regWrite(REG_PATH, REG_SCREEN_ON, 1)
     SetThreadExecutionState(ES_CONTINUOUS or ES_SYSTEM_REQUIRED or ES_DISPLAY_REQUIRED)
   else:
-    regDelete(regPath, regScreenOn)
+    regDelete(REG_PATH, REG_SCREEN_ON)
     SetThreadExecutionState(ES_CONTINUOUS)
   trayUpdate(tray)
 
@@ -157,9 +149,9 @@ proc quitCallBack(_: ptr TrayMenuItem) {.cdecl.} =
 
 proc initApp(isScreenOnEnabled: bool): wApp =
   # check register values
-  hkData.isRemapCtrlTabEnabled = regRead(regPath, regRemapCtrlTab).kind == rkRegError
-  hkData.isRemapCtrlPgEnabled = regRead(regPath, regRemapCtrlPg).kind == rkRegError
-  hkData.isRemapCapsEnabled = regRead(regPath, regRemapCaps).kind == rkRegError
+  hkData.isRemapCtrlTabEnabled = regRead(REG_PATH, REG_REMAP_CTRLTAB_VAL).kind == rkRegError
+  hkData.isRemapCtrlPgEnabled = regRead(REG_PATH, REG_REMAP_CTRLPG_VAL).kind == rkRegError
+  hkData.isRemapCapsEnabled = regRead(REG_PATH, REG_REMAP_CAPS).kind == rkRegError
 
   # tray
   tray = initTray(
@@ -182,10 +174,8 @@ proc initApp(isScreenOnEnabled: bool): wApp =
   result = App(wSystemDpiAware)
   hkData.frame = Frame(title="CtrlAltTab", size=(600, 600), style = wDefaultFrameStyle or wHideTaskbar)
   #hkData.frame.disableMaximizeButton()
-  hkData.frame.wEvent_Close do(event: wEvent):
-    quitCallBack(nil)
-  hkData.frame.wEvent_Minimize do(event: wEvent):
-    hkData.frame.hide()
+  hkData.frame.wEvent_Close do(event: wEvent): quitCallBack(nil)
+  hkData.frame.wEvent_Minimize do(event: wEvent): hkData.frame.hide()
 
   # about window
   about(hkData.frame)
@@ -194,13 +184,10 @@ proc WTSRegisterSessionNotification(hWnd: HWND, dwFlags: DWORD): WINBOOL {.stdca
 const NOTIFY_FOR_THIS_SESSION = 0
 
 proc hookSessionChangeMsg(msg: var wMsg, modalHwnd: HWND): int =
-  if msg.message != WM_WTSSESSION_CHANGE:
-    return
+  if msg.message != WM_WTSSESSION_CHANGE: return
   case msg.wParam
-  of WTS_SESSION_LOCK:
-    if isHookNeeded(): unhook()
-  of WTS_SESSION_UNLOCK:
-    if isHookNeeded(): hook()
+  of WTS_SESSION_LOCK: unhook(force = true)
+  of WTS_SESSION_UNLOCK: hook()
   else: discard
 
 proc main() =
@@ -211,12 +198,12 @@ proc main() =
   if GetLastError() == ERROR_ALREADY_EXISTS:
     quit 1
 
-  let isScreenOnEnabled = regRead(regPath, regScreenOn).kind != rkRegError
+  let isScreenOnEnabled = regRead(REG_PATH, REG_SCREEN_ON).kind != rkRegError
   let app = initApp(isScreenOnEnabled)
   doAssert WTSRegisterSessionNotification(hkData.frame.mHwnd, NOTIFY_FOR_THIS_SESSION)
   app.addMessageLoopHook(hookSessionChangeMsg)
 
-  if isHookNeeded(): hook()
+  hook()
   if isScreenOnEnabled:
     SetThreadExecutionState(ES_CONTINUOUS or ES_SYSTEM_REQUIRED or ES_DISPLAY_REQUIRED)
   app.mainLoop()

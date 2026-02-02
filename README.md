@@ -11,6 +11,7 @@ Remap some windows shortcuts. Simple replacement for powertoys keyboard manager
 - screen on functionality
 - tray menu
 - stores options in registry `HKEY_CURRENT_USER\SOFTWARE\CtrlAltDel`
+- autorun switch
 
 ## preparation
 
