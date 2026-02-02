@@ -13,6 +13,8 @@ const regRemapCtrlPg = "RemapCtrlPgDisabled"
 const regRemapCaps = "RemapCapsDisabled"
 const regScreenOn = "ScreenOn"
 
+const regAutoRunPath = r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run"
+
 const APP_MUTEX_NAME = r"Local\CTRLALTTAB-UNIQUE-GUID-HERE"
 
 type
@@ -29,6 +31,7 @@ type
     hMutex: HANDLE
 
 var hkData {.threadvar.}: HotkeyData
+var tray {.threadvar.}: Tray
 
 proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} =
   var processed = false
@@ -159,9 +162,9 @@ proc initApp(isScreenOnEnabled: bool): wApp =
   hkData.isRemapCapsEnabled = regRead(regPath, regRemapCaps).kind == rkRegError
 
   # tray
-  let tray = initTray(
-    # iconFilepath = "ctrlalttab.exe",
-    iconFilepath = "icon.ico",
+  tray = initTray(
+    iconFilepath = "ctrlalttab.exe",
+    # iconFilepath = "icon.ico",
     tooltip = "CtrlAltTab",
     cb = showWindowCallBack,
     menus = [
