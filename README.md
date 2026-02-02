@@ -38,7 +38,7 @@ reg add "HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout" /v "Scancode Map
 
 ## requirements
 - Windows
-- Nim 2.0.8
+- Nim 2.0.8 https://nim-lang.org/
 
 ## build
 ```
