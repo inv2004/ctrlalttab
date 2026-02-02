@@ -27,7 +27,7 @@ rmenu => home
 home => print screen (maybe will remove)
 ```
 
-amend it for your own needs or use sharpkeys for the same needs
+amend it for your own needs or use SharpKeys for the same needs
 
 ```
 reg add "HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout" /v "Scancode Map" /t REG_BINARY /d 0000000000000000070000001D00380038001D004FE01DE047E038E047E05DE037E047E000000000
