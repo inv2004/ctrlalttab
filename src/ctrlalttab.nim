@@ -105,14 +105,17 @@ proc showWindowCallBack(_: ptr Tray) {.cdecl.} =
   hkData.frame.setTopMost()
   hkData.frame.setTopMost(false)
 
+proc isHookNeeded(): bool =
+  hkData.isRemapCtrlTabEnabled or hkData.isRemapCtrlPgEnabled or hkData.isRemapCapsEnabled
+
 proc hook() =
-  if hkData.hHook == 0:
-    hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
+  doAssert hkData.hHook == 0
+  hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
 
 proc unhook() =
-  if not (hkData.isRemapCtrlTabEnabled or hkData.isRemapCtrlPgEnabled or hkData.isRemapCapsEnabled):
-    UnhookWindowsHookEx(hkData.hHook)
-    hkData.hHook = 0
+  doAssert hkData.hHook != 0
+  UnhookWindowsHookEx(hkData.hHook)
+  hkData.hHook = 0
 
 template genCallback(fnName, hkDataVal: untyped, regVal: string) =
   proc fnName(item: ptr TrayMenuItem) {.cdecl.} =
@@ -121,10 +124,10 @@ template genCallback(fnName, hkDataVal: untyped, regVal: string) =
     hkData.hkDataVal = not bool(item.checked)
     if hkData.hkDataVal:
       regDelete(regPath, regVal)
-      hook()
+      if isHookNeeded(): hook()
     else:
       regWrite(regPath, regVal, 1)
-      unhook()
+      if not isHookNeeded(): unhook()
     item.checked = cint(hkData.hkDataVal)
     trayUpdate(tray)
 
@@ -157,7 +160,8 @@ proc initApp(isScreenOnEnabled: bool): wApp =
 
   # tray
   let tray = initTray(
-    iconFilepath = "ctrlalttab.exe",
+    # iconFilepath = "ctrlalttab.exe",
+    iconFilepath = "icon.ico",
     tooltip = "CtrlAltTab",
     cb = showWindowCallBack,
     menus = [
@@ -183,6 +187,19 @@ proc initApp(isScreenOnEnabled: bool): wApp =
   # about window
   about(hkData.frame)
 
+proc WTSRegisterSessionNotification(hWnd: HWND, dwFlags: DWORD): WINBOOL {.stdcall, dynlib: "wtsapi32", importc.}
+const NOTIFY_FOR_THIS_SESSION = 0
+
+proc hookSessionChangeMsg(msg: var wMsg, modalHwnd: HWND): int =
+  if msg.message != WM_WTSSESSION_CHANGE:
+    return
+  case msg.wParam
+  of WTS_SESSION_LOCK:
+    if isHookNeeded(): unhook()
+  of WTS_SESSION_UNLOCK:
+    if isHookNeeded(): hook()
+  else: discard
+
 proc main() =
   # check running
   hkData.hMutex = CreateMutex(nil, false, APP_MUTEX_NAME)
@@ -193,9 +210,10 @@ proc main() =
 
   let isScreenOnEnabled = regRead(regPath, regScreenOn).kind != rkRegError
   let app = initApp(isScreenOnEnabled)
+  doAssert WTSRegisterSessionNotification(hkData.frame.mHwnd, NOTIFY_FOR_THIS_SESSION)
+  app.addMessageLoopHook(hookSessionChangeMsg)
 
-  if hkData.isRemapCtrlTabEnabled or hkData.isRemapCtrlPgEnabled or hkData.isRemapCapsEnabled:
-    hook()
+  if isHookNeeded(): hook()
   if isScreenOnEnabled:
     SetThreadExecutionState(ES_CONTINUOUS or ES_SYSTEM_REQUIRED or ES_DISPLAY_REQUIRED)
   app.mainLoop()
