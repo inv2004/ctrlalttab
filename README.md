@@ -6,9 +6,9 @@ The tool remaps some windows _shortcuts_. Simple replacement for powertoys keybo
 
 \* _only_ shortcuts because single key remap is much better via `Scancode Map` or SharpKeys
 
-- `Alt-Tab` for Ctrl-Tab, supports multi tab switch. Could be useful is you swap `Ctrl<=>Alt`
+- swaps `Alt-Tab` vs `Ctrl-Tab`, supports multi tab switch. * Could be useful is you swap `Ctrl<=>Alt`
 - `Ctrl+\[` / `]`, to Ctrl+PageUp / PageDown
-- `Caps` to Alt+Shift # Language switch
+- `Caps` to Ctrl+Shift # Language switch
 - `Win+Shift+F23` to home # lenovo AI key. Good is right ctrl is mapped to `End`
 - `Screen-On` functionality
 - tray menu

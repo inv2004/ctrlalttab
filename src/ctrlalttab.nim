@@ -25,8 +25,10 @@ var hkData {.threadvar.}: HotkeyData
 var tray {.threadvar.}: Tray
 
 proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} =
-  let kbd = cast[LPKBDLLHOOKSTRUCT](lParam)
+  if nCode < 0:
+    return CallNextHookEx(0, nCode, wParam, lParam)
 
+  let kbd = cast[LPKBDLLHOOKSTRUCT](lParam)
   if (kbd.flags and LLKHF_INJECTED) != 0:
     return CallNextHookEx(0, nCode, wParam, lParam)
 
@@ -37,7 +39,7 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
     hkData.lastKeyCode = 0
 
     case int kbd.vkCode
-    of VK_LCONTROL:
+    of VK_LCONTROL, VK_RCONTROL:
       hkData.lastModifiers = hkData.lastModifiers and (not wModCtrl)
       if hkData.alttab:
         send "{LALTUP}"
@@ -49,14 +51,14 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
         hkData.ctrltab = false
     of VK_LSHIFT, VK_RSHIFT: hkData.lastModifiers = hkData.lastModifiers and (not wModShift)
     of VK_LWIN, VK_RWIN: hkData.lastModifiers = hkData.lastModifiers and (not wModWin)
+    of VK_CAPITAL:
+      if hkData.caps:
+        hkData.caps = false
     else: discard
 
-    if hkData.caps:
-      hkData.caps = false
-
   of WM_KEYDOWN, WM_SYSKEYDOWN:
+    # echo hkData.lastKeyCode, " ... ", kbd.vkCode
     case int kbd.vkCode
-
     of VK_LCONTROL, VK_RCONTROL, VK_LMENU, VK_RMENU, VK_LSHIFT, VK_RSHIFT, VK_LWIN, VK_RWIN:
       hkData.lastKeyCode = 0
       case int kbd.vkCode
@@ -67,37 +69,44 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
       else: discard
 
     else:
-      if kbd.vkCode != hkData.lastKeyCode:
-        if hkData.isRemapCtrlTabEnabled and hkData.lastModifiers == wModCtrl and kbd.vkCode == VK_TAB:
+      let vkCode = int kbd.vkCode
+      if vkCode != hkData.lastKeyCode:
+        if hkData.isRemapCtrlTabEnabled and hkData.lastModifiers in [wModCtrl, wModShift or wModCtrl] and vkCode == VK_TAB:
           send "{LCTRLUP}{LALTDOWN}{TAB}"
           hkData.alttab = true
           processed = true
-        elif hkData.isRemapCtrlTabEnabled and hkData.lastModifiers == wModAlt and kbd.vkCode == VK_TAB:
+        elif hkData.isRemapCtrlTabEnabled and hkData.lastModifiers in [wModAlt, wModShift or wModAlt] and vkCode == VK_TAB:
           send "{LALTUP}{LCTRLDOWN}{TAB}"
           hkData.ctrltab = true
           processed = true
-        elif hkData.isRemapCapsEnabled and not hkData.caps and hkData.lastModifiers == 0 and kbd.vkCode == VK_CAPITAL:
+        elif hkData.isRemapCapsEnabled and not hkData.caps and hkData.lastModifiers == 0 and vkCode == VK_CAPITAL:
           hkData.caps = true
-          send "{LCTRLDOWN}{LSHIFTDOWN}{LCTRLUP}{LSHIFTUP}"
+          send "{LCTRLDOWN}{LSHIFTDOWN}{LCTRLUP}{LSHIFTUP}" # flicks less than {WIN}{SPACE} - DNKW
           processed = true
+        # elif hkData.lastKeyCode == VK_CAPITAL and vkCode == 74:
+        #   send "{LEFT}{LEFT}{LSHIFTDOWN}{LCTRLDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
+        #   processed = true
+        # elif hkData.lastKeyCode == VK_CAPITAL and vkCode == 76:
+        #   send "{RIGHT}{RIGHT}{LSHIFTDOWN}{LCTRLDOWN}{RIGHT}{LCTRLUP}{LSHIFTUP}"
+        #   processed = true
         elif hkData.isRemapCtrlPgEnabled:
-          if hkData.lastModifiers == wModCtrl and kbd.vkCode == VK_OEM_4:
+          if hkData.lastModifiers == wModCtrl and vkCode == VK_OEM_4:
             send "{LCTRLDOWN}{PGUP}"
             processed = true
-          elif hkData.lastModifiers == wModCtrl and kbd.vkCode == VK_OEM_6:
+          elif hkData.lastModifiers == wModCtrl and vkCode == VK_OEM_6:
             send "{LCTRLDOWN}{PGDN}"
             processed = true
-          elif hkData.lastModifiers == 0 and kbd.vkCode == VK_BROWSER_BACK:
+          elif hkData.lastModifiers == 0 and vkCode == VK_BROWSER_BACK:
             send "{PGUP}"
             processed = true
-          elif hkData.lastModifiers == 0 and kbd.vkCode == VK_BROWSER_FORWARD:
+          elif hkData.lastModifiers == 0 and vkCode == VK_BROWSER_FORWARD:
             send "{PGDN}"
             processed = true
-          elif hkData.lastModifiers == (wModWin or wModShift) and kbd.vkCode == VK_F23: # Lenovo AI Key:
+          elif hkData.lastModifiers == (wModWin or wModShift) and vkCode == VK_F23: # Lenovo AI Key:
             send "{LWINUP}{LSHIFTUP}{HOME}"
             processed = true
 
-      hkData.lastKeyCode = kbd.vkCode
+      hkData.lastKeyCode = vkCode
 
   else: discard
 
@@ -115,7 +124,6 @@ proc hookCondition(): bool =
 proc hook() =
   if hookCondition():
     if hkData.hHook == 0:
-      hkData.lastModifiers = 0
       hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
 
 proc unhook(force = false) =
@@ -124,6 +132,11 @@ proc unhook(force = false) =
   doAssert hkData.hHook != 0
   UnhookWindowsHookEx(hkData.hHook)
   hkData.hHook = 0
+  hkData.lastModifiers = 0
+  hkData.lastKeyCode = 0
+  hkData.alttab = false
+  hkData.ctrltab = false
+  hkData.caps = false
 
 template genCallback(fnName, hkDataVal: untyped, regVal: string) =
   proc fnName(item: ptr TrayMenuItem) {.cdecl.} =
@@ -158,6 +171,7 @@ proc screenCallBack(item: ptr TrayMenuItem) {.cdecl.} =
 proc quitCallBack(_: ptr TrayMenuItem) {.cdecl.} =
   trayExit()
   CloseHandle(hkData.hMutex)
+  unhook(force = true)
   quit 0
 
 proc initApp(isScreenOnEnabled: bool): wApp =
@@ -186,7 +200,7 @@ proc initApp(isScreenOnEnabled: bool): wApp =
 
   result = App(wSystemDpiAware)
   hkData.frame = Frame(title="CtrlAltTab", size=(600, 600), style = wDefaultFrameStyle or wHideTaskbar)
-  #hkData.frame.disableMaximizeButton()
+  # hkData.frame.disableMaximizeButton()
   hkData.frame.wEvent_Close do(event: wEvent): quitCallBack(nil)
   hkData.frame.wEvent_Minimize do(event: wEvent): hkData.frame.hide()
 
@@ -217,6 +231,8 @@ proc main() =
   app.addMessageLoopHook(hookSessionChangeMsg)
 
   hook()
+  defer: unhook(force = true)
+
   if isScreenOnEnabled:
     SetThreadExecutionState(ES_CONTINUOUS or ES_SYSTEM_REQUIRED or ES_DISPLAY_REQUIRED)
   app.mainLoop()
