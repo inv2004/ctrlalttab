@@ -13,6 +13,7 @@ type
     lastKeyCode: int
     lastModifiers: int
     alttab: bool
+    ctrltab: bool
     caps: bool
     isRemapCtrlTabEnabled: bool
     isRemapCtrlPgEnabled: bool
@@ -24,8 +25,12 @@ var hkData {.threadvar.}: HotkeyData
 var tray {.threadvar.}: Tray
 
 proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} =
-  var processed = false
   let kbd = cast[LPKBDLLHOOKSTRUCT](lParam)
+
+  if (kbd.flags and LLKHF_INJECTED) != 0:
+    return CallNextHookEx(0, nCode, wParam, lParam)
+
+  var processed = false
 
   case int wParam
   of WM_KEYUP, WM_SYSKEYUP:
@@ -37,7 +42,11 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
       if hkData.alttab:
         send "{LALTUP}"
         hkData.alttab = false
-    of VK_LMENU, VK_RMENU: hkData.lastModifiers = hkData.lastModifiers and (not wModAlt)
+    of VK_LMENU, VK_RMENU:
+      hkData.lastModifiers = hkData.lastModifiers and (not wModAlt)
+      if hkData.ctrltab:
+        send "{LCTRLUP}"
+        hkData.ctrltab = false
     of VK_LSHIFT, VK_RSHIFT: hkData.lastModifiers = hkData.lastModifiers and (not wModShift)
     of VK_LWIN, VK_RWIN: hkData.lastModifiers = hkData.lastModifiers and (not wModWin)
     else: discard
@@ -62,6 +71,10 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
         if hkData.isRemapCtrlTabEnabled and hkData.lastModifiers == wModCtrl and kbd.vkCode == VK_TAB:
           send "{LCTRLUP}{LALTDOWN}{TAB}"
           hkData.alttab = true
+          processed = true
+        elif hkData.isRemapCtrlTabEnabled and hkData.lastModifiers == wModAlt and kbd.vkCode == VK_TAB:
+          send "{LALTUP}{LCTRLDOWN}{TAB}"
+          hkData.ctrltab = true
           processed = true
         elif hkData.isRemapCapsEnabled and not hkData.caps and hkData.lastModifiers == 0 and kbd.vkCode == VK_CAPITAL:
           hkData.caps = true
