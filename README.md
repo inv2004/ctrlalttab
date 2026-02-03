@@ -14,6 +14,7 @@ The tool remaps some windows _shortcuts_. Simple replacement for powertoys keybo
 - tray menu
 - saves settings in registry `HKEY_CURRENT_USER\SOFTWARE\CtrlAltDel`
 - autorun switch
+- **experimental** remap `Caps+IJKL`
 
 ## preparation
 

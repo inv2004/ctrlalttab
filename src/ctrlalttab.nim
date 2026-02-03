@@ -14,6 +14,7 @@ type
     lastModifiers: int
     alttab: bool
     ctrltab: bool
+    move: bool
     caps: bool
     isRemapCtrlTabEnabled: bool
     isRemapCtrlPgEnabled: bool
@@ -36,7 +37,10 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
 
   case int wParam
   of WM_KEYUP, WM_SYSKEYUP:
-    hkData.lastKeyCode = 0
+    if hkData.move:
+      hkData.lastKeyCode = VK_CAPITAL
+    else:
+      hkData.lastKeyCode = 0
 
     case int kbd.vkCode
     of VK_LCONTROL, VK_RCONTROL:
@@ -51,13 +55,16 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
         hkData.ctrltab = false
     of VK_LSHIFT, VK_RSHIFT: hkData.lastModifiers = hkData.lastModifiers and (not wModShift)
     of VK_LWIN, VK_RWIN: hkData.lastModifiers = hkData.lastModifiers and (not wModWin)
-    of VK_CAPITAL:
-      if hkData.caps:
-        hkData.caps = false
+    elif hkData.isRemapCapsEnabled and kbd.vkCode == VK_CAPITAL:
+      if hkData.move:
+        hkData.move = false
+        hkData.lastKeyCode = 0
+      else:
+        send "{LCTRLDOWN}{LSHIFTDOWN}{LCTRLUP}{LSHIFTUP}" # flicks less than {WIN}{SPACE} - DNKW
+      processed = true
     else: discard
 
   of WM_KEYDOWN, WM_SYSKEYDOWN:
-    # echo hkData.lastKeyCode, " ... ", kbd.vkCode
     case int kbd.vkCode
     of VK_LCONTROL, VK_RCONTROL, VK_LMENU, VK_RMENU, VK_LSHIFT, VK_RSHIFT, VK_LWIN, VK_RWIN:
       hkData.lastKeyCode = 0
@@ -70,7 +77,24 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
 
     else:
       let vkCode = int kbd.vkCode
-      if vkCode != hkData.lastKeyCode:
+
+      if hkData.isRemapCapsEnabled and (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 74:
+        hkData.move = true
+        send "{LEFT}{LEFT}{LSHIFTDOWN}{LCTRLDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
+        processed = true
+      elif hkData.isRemapCapsEnabled and (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 76:
+          hkData.move = true
+          send "{LCTRLDOWN}{RIGHT}{LCTRLUP}{RIGHT}{LCTRLDOWN}{RIGHT}{LSHIFTDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
+          processed = true
+      elif hkData.isRemapCapsEnabled and (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 73:
+          hkData.move = true
+          send "{UP}{LCTRLDOWN}{RIGHT}{LSHIFTDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
+          processed = true
+      elif hkData.isRemapCapsEnabled and (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 75:
+          hkData.move = true
+          send "{DOWN}{LCTRLDOWN}{RIGHT}{LSHIFTDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
+          processed = true
+      elif vkCode != hkData.lastKeyCode:
         if hkData.isRemapCtrlTabEnabled and hkData.lastModifiers in [wModCtrl, wModShift or wModCtrl] and vkCode == VK_TAB:
           send "{LCTRLUP}{LALTDOWN}{TAB}"
           hkData.alttab = true
@@ -79,16 +103,6 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
           send "{LALTUP}{LCTRLDOWN}{TAB}"
           hkData.ctrltab = true
           processed = true
-        elif hkData.isRemapCapsEnabled and not hkData.caps and hkData.lastModifiers == 0 and vkCode == VK_CAPITAL:
-          hkData.caps = true
-          send "{LCTRLDOWN}{LSHIFTDOWN}{LCTRLUP}{LSHIFTUP}" # flicks less than {WIN}{SPACE} - DNKW
-          processed = true
-        # elif hkData.lastKeyCode == VK_CAPITAL and vkCode == 74:
-        #   send "{LEFT}{LEFT}{LSHIFTDOWN}{LCTRLDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
-        #   processed = true
-        # elif hkData.lastKeyCode == VK_CAPITAL and vkCode == 76:
-        #   send "{RIGHT}{RIGHT}{LSHIFTDOWN}{LCTRLDOWN}{RIGHT}{LCTRLUP}{LSHIFTUP}"
-        #   processed = true
         elif hkData.isRemapCtrlPgEnabled:
           if hkData.lastModifiers == wModCtrl and vkCode == VK_OEM_4:
             send "{LCTRLDOWN}{PGUP}"
@@ -124,6 +138,7 @@ proc hookCondition(): bool =
 proc hook() =
   if hookCondition():
     if hkData.hHook == 0:
+      opt("SendKeyDelay", 0)
       hkData.hHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyProc, GetModuleHandle(nil), 0)
 
 proc unhook(force = false) =
