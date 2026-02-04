@@ -30,7 +30,7 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
     return CallNextHookEx(0, nCode, wParam, lParam)
 
   let kbd = cast[LPKBDLLHOOKSTRUCT](lParam)
-  if (kbd.flags and LLKHF_INJECTED) != 0:
+  if (kbd.flags and LLKHF_INJECTED) != 0 and kbd.vkCode notin [VK_BROWSER_BACK, VK_BROWSER_FORWARD] :
     return CallNextHookEx(0, nCode, wParam, lParam)
 
   var processed = false
@@ -110,10 +110,10 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
           elif hkData.lastModifiers == wModCtrl and vkCode == VK_OEM_6:
             send "{LCTRLDOWN}{PGDN}"
             processed = true
-          elif hkData.lastModifiers == 0 and vkCode == VK_BROWSER_BACK:
+          elif vkCode == VK_BROWSER_BACK:
             send "{PGUP}"
             processed = true
-          elif hkData.lastModifiers == 0 and vkCode == VK_BROWSER_FORWARD:
+          elif vkCode == VK_BROWSER_FORWARD:
             send "{PGDN}"
             processed = true
           elif hkData.lastModifiers == (wModWin or wModShift) and vkCode == VK_F23: # Lenovo AI Key:
