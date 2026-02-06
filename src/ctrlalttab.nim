@@ -104,11 +104,11 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
           hkData.ctrltab = true
           processed = true
         elif hkData.isRemapCtrlPgEnabled:
-          if hkData.lastModifiers == wModCtrl and vkCode == VK_OEM_4:
-            send "{LCTRLDOWN}{PGUP}"
+          if (hkData.lastModifiers and wModCtrl) > 0 and vkCode == VK_OEM_4:
+            send "{PGUP}"
             processed = true
-          elif hkData.lastModifiers == wModCtrl and vkCode == VK_OEM_6:
-            send "{LCTRLDOWN}{PGDN}"
+          elif (hkData.lastModifiers and wModCtrl) > 0 and vkCode == VK_OEM_6:
+            send "{PGDN}"
             processed = true
           elif vkCode == VK_BROWSER_BACK:
             send "{PGUP}"
