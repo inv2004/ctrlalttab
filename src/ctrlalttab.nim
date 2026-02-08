@@ -78,7 +78,9 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
     else:
       let vkCode = int kbd.vkCode
 
-      if hkData.isRemapCapsEnabled and (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 74:
+      if hkData.isRemapCapsEnabled and vkCode == VK_CAPITAL:
+        processed = true
+      elif hkData.isRemapCapsEnabled and (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 74:
         hkData.move = true
         send "{LEFT}{LEFT}{LSHIFTDOWN}{LCTRLDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
         processed = true
