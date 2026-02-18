@@ -1,7 +1,7 @@
 import consts except regAutoRunPath
 import about
 
-import winim/lean
+import winim/lean, winim/inc/psapi
 import wNim/[wApp, wFrame, wTextCtrl]
 import wAuto
 
@@ -25,15 +25,30 @@ type
 var hkData {.threadvar.}: HotkeyData
 var tray {.threadvar.}: Tray
 
+proc winTitle() =
+  var pid: DWORD
+  var size: int32 = MAX_PATH
+  GetWindowThreadProcessId(GetForegroundWindow(), pid.addr)
+  let hProcess = OpenProcess(PROCESS_QUERY_INFORMATION or PROCESS_VM_READ, false, pid)
+  var result = newString(MAX_PATH)
+  if QueryFullProcessImageNameA(hProcess, 0, result[0].addr, size.addr):
+    CloseHandle(hProcess)
+    result.setLen(size)
+    echo result
+  CloseHandle(hProcess)
+
 proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} =
   if nCode < 0:
     return CallNextHookEx(0, nCode, wParam, lParam)
 
   let kbd = cast[LPKBDLLHOOKSTRUCT](lParam)
-  if (kbd.flags and LLKHF_INJECTED) != 0 and kbd.vkCode notin [VK_BROWSER_BACK, VK_BROWSER_FORWARD] :
+
+  if (kbd.flags and LLKHF_INJECTED) != 0 and kbd.vkCode notin [VK_BROWSER_BACK, VK_BROWSER_FORWARD]:
     return CallNextHookEx(0, nCode, wParam, lParam)
 
   var processed = false
+
+  # winTitle()
 
   case int wParam
   of WM_KEYUP, WM_SYSKEYUP:
@@ -96,31 +111,32 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
           hkData.move = true
           send "{DOWN}{LCTRLDOWN}{RIGHT}{LSHIFTDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
           processed = true
-      elif vkCode != hkData.lastKeyCode:
-        if hkData.isRemapCtrlTabEnabled and hkData.lastModifiers in [wModCtrl, wModShift or wModCtrl] and vkCode == VK_TAB:
-          send "{LCTRLUP}{LALTDOWN}{TAB}"
-          hkData.alttab = true
+      elif hkData.isRemapCtrlTabEnabled and hkData.lastModifiers in [wModCtrl, wModShift or wModCtrl] and vkCode == VK_TAB:
+        send "{LCTRLUP}{LALTDOWN}{TAB}"
+        hkData.alttab = true
+        processed = true
+      elif hkData.isRemapCtrlTabEnabled and hkData.lastModifiers in [wModAlt, wModShift or wModAlt] and vkCode == VK_TAB:
+        send "{LALTUP}{LCTRLDOWN}{TAB}"
+        hkData.ctrltab = true
+        processed = true
+      elif hkData.isRemapCtrlPgEnabled:
+        if (hkData.lastModifiers and wModCtrl) > 0 and vkCode == VK_OEM_4:
+          send "{PGUP}"
           processed = true
-        elif hkData.isRemapCtrlTabEnabled and hkData.lastModifiers in [wModAlt, wModShift or wModAlt] and vkCode == VK_TAB:
-          send "{LALTUP}{LCTRLDOWN}{TAB}"
-          hkData.ctrltab = true
+        elif (hkData.lastModifiers and wModCtrl) > 0 and vkCode == VK_OEM_6:
+          send "{PGDN}"
           processed = true
-        elif hkData.isRemapCtrlPgEnabled:
-          if (hkData.lastModifiers and wModCtrl) > 0 and vkCode == VK_OEM_4:
-            send "{PGUP}"
-            processed = true
-          elif (hkData.lastModifiers and wModCtrl) > 0 and vkCode == VK_OEM_6:
-            send "{PGDN}"
-            processed = true
-          elif vkCode == VK_BROWSER_BACK:
-            send "{PGUP}"
-            processed = true
-          elif vkCode == VK_BROWSER_FORWARD:
-            send "{PGDN}"
-            processed = true
-          elif hkData.lastModifiers == (wModWin or wModShift) and vkCode == VK_F23: # Lenovo AI Key:
-            send "{LWINUP}{LSHIFTUP}{HOME}"
-            processed = true
+        elif vkCode == VK_BROWSER_BACK:
+          echo "up"
+          send "{PGUP}"
+          processed = true
+        elif vkCode == VK_BROWSER_FORWARD:
+          echo "down"
+          send "{PGDN}"
+          processed = true
+        elif hkData.lastModifiers == (wModWin or wModShift) and vkCode == VK_F23: # Lenovo AI Key:
+          send "{LWINUP}{LSHIFTUP}{HOME}"
+          processed = true
 
       hkData.lastKeyCode = vkCode
 
