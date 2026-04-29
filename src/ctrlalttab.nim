@@ -80,10 +80,11 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
     else: discard
 
   of WM_KEYDOWN, WM_SYSKEYDOWN:
-    case int kbd.vkCode
+    let vkCode = int kbd.vkCode
+    case vkCode
     of VK_LCONTROL, VK_RCONTROL, VK_LMENU, VK_RMENU, VK_LSHIFT, VK_RSHIFT, VK_LWIN, VK_RWIN:
       hkData.lastKeyCode = 0
-      case int kbd.vkCode
+      case vkCode
       of VK_LCONTROL, VK_RCONTROL: hkData.lastModifiers = hkData.lastModifiers or wModCtrl
       of VK_LMENU, VK_RMENU: hkData.lastModifiers = hkData.lastModifiers or wModAlt
       of VK_LSHIFT, VK_RSHIFT: hkData.lastModifiers = hkData.lastModifiers or wModShift
@@ -91,35 +92,35 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
       else: discard
 
     else:
-      let vkCode = int kbd.vkCode
-
-      if hkData.isRemapCapsEnabled and vkCode == VK_CAPITAL:
-        processed = true
-      elif hkData.isRemapCapsEnabled and (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 74:
-        hkData.move = true
-        send "{LEFT}{LEFT}{LSHIFTDOWN}{LCTRLDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
-        processed = true
-      elif hkData.isRemapCapsEnabled and (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 76:
+      if hkData.isRemapCapsEnabled:
+        if vkCode == VK_CAPITAL:
+          processed = true
+        elif (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 74:
+          hkData.move = true
+          send "{LEFT}{LEFT}{LSHIFTDOWN}{LCTRLDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
+          processed = true
+        elif (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 76:
           hkData.move = true
           send "{LCTRLDOWN}{RIGHT}{LCTRLUP}{RIGHT}{LCTRLDOWN}{RIGHT}{LSHIFTDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
           processed = true
-      elif hkData.isRemapCapsEnabled and (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 73:
+        elif (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 73:
           hkData.move = true
           send "{UP}{LCTRLDOWN}{RIGHT}{LSHIFTDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
           processed = true
-      elif hkData.isRemapCapsEnabled and (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 75:
+        elif (hkData.lastKeyCode == VK_CAPITAL or hkData.move) and vkCode == 75:
           hkData.move = true
           send "{DOWN}{LCTRLDOWN}{RIGHT}{LSHIFTDOWN}{LEFT}{LCTRLUP}{LSHIFTUP}"
           processed = true
-      elif hkData.isRemapCtrlTabEnabled and hkData.lastModifiers in [wModCtrl, wModShift or wModCtrl] and vkCode == VK_TAB:
-        send "{LCTRLUP}{LALTDOWN}{TAB}"
-        hkData.alttab = true
-        processed = true
-      elif hkData.isRemapCtrlTabEnabled and hkData.lastModifiers in [wModAlt, wModShift or wModAlt] and vkCode == VK_TAB:
-        send "{LALTUP}{LCTRLDOWN}{TAB}"
-        hkData.ctrltab = true
-        processed = true
-      elif hkData.isRemapCtrlPgEnabled:
+      if hkData.isRemapCtrlTabEnabled:
+        if hkData.lastModifiers in [wModCtrl, wModShift or wModCtrl] and vkCode == VK_TAB:
+          send "{LCTRLUP}{LALTDOWN}{TAB}"
+          hkData.alttab = true
+          processed = true
+        elif hkData.lastModifiers in [wModAlt, wModShift or wModAlt] and vkCode == VK_TAB:
+          send "{LALTUP}{LCTRLDOWN}{TAB}"
+          hkData.ctrltab = true
+          processed = true
+      if hkData.isRemapCtrlPgEnabled:
         if (hkData.lastModifiers and wModCtrl) > 0 and vkCode == VK_OEM_4:
           send "{PGUP}"
           processed = true
@@ -133,6 +134,9 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
         elif vkCode == VK_BROWSER_FORWARD:
           echo "down"
           send "{PGDN}"
+          processed = true
+        elif vkCode == VK_SNAPSHOT:
+          send "{HOME}"
           processed = true
         elif hkData.lastModifiers == (wModWin or wModShift) and vkCode == VK_F23: # Lenovo AI Key:
           send "{LWINUP}{LSHIFTUP}{HOME}"
