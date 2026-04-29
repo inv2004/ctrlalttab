@@ -135,9 +135,6 @@ proc keyProc(nCode: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} 
           echo "down"
           send "{PGDN}"
           processed = true
-        elif vkCode == VK_SNAPSHOT:
-          send "{HOME}"
-          processed = true
         elif hkData.lastModifiers == (wModWin or wModShift) and vkCode == VK_F23: # Lenovo AI Key:
           send "{LWINUP}{LSHIFTUP}{HOME}"
           processed = true
